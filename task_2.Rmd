@@ -10,6 +10,45 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Stephen's code
+Loading libraries and code
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(GGally)
+data <- read_excel("inst/edited_spotify.xlsx") %>%
+  mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
+  #Old-school grepl method
+  mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
+  #Tidyverse str_detect method
+  mutate(Artist = ifelse(Artist %>% 
+                           str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
+  na.omit()
+sapply(data, class)
+```
+Variable distributions
+```{r, message = FALSE}
+# Not sure why gather doesn't work, looks like it should as all attributes are numeric but anyway
+distributions <- data %>%
+  gather(key = key, value = value) %>%
+  subset(key %in% colnames(data[15:27])) %>%
+  ggplot() +
+  geom_density(aes(value)) +
+  facet_wrap(~key, scales = "free") +
+  theme_classic()
+distributions
 
+
+ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
+ggpairs_1
+
+#Puts each song in  a cluster based on ALL numeric discriptors
+cluster_1 <- data %>%
+  select(colnames(data[15:27]), -TrackMode) %>%
+  kmeans(50,100,1)
+#can look at following: cluster, centers, withins, size
+#Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
+```
+Let's look at the distributions of all the datapoints
 ## Gabriels's Code
 
