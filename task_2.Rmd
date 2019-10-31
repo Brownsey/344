@@ -23,7 +23,9 @@ data <- read_excel("inst/edited_spotify.xlsx") %>%
   #Tidyverse str_detect method
   mutate(Artist = ifelse(Artist %>% 
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
-  na.omit()
+  na.omit() %>%
+  mutate(id = row_number()) %>%
+  mutate(id = as.character(id))
 sapply(data, class)
 ```
 Variable distributions
@@ -46,6 +48,13 @@ ggpairs_1
 cluster_1 <- data %>%
   select(colnames(data[15:27]), -TrackMode) %>%
   kmeans(50,100,1)
+
+clusters <- cluster_1$cluster %>%
+  enframe(name = "id") %>%
+  mutate(id = as.character(id))
+#Not sure why not merging think it should
+data <- right_join(data, clusters, by = id)  %>%
+  rename_(cluster = value)
 #can look at following: cluster, centers, withins, size
 #Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
 ```
