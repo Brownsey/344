@@ -68,10 +68,12 @@ get_row <- function(song_name){
   min(which(line_number == TRUE))
 }
 
-
-get_cluster_rows <- function(cluster){
-  clusters$value %>%
-    str_detect(cluster_number)
+#Struggling to get this to 
+get_cluster_rows <- function(cluster_number){
+  clusters %>%
+    filter(value == cluster_number) %>%
+    select(id) 
+  #Need to remove song currently listening to
 }
 
 #Object of type class NULL error...hmmm when trying to use dplyr slice but works with base :O
@@ -79,15 +81,23 @@ get_cluster <- function(row_number){
   cluster_1$cluster[row_number]
 }
 
+
 random_picker <- function(cluster_number){
-  data %>%
-    filter()
+new_song_rn <- get_cluster_rows(cluster_number) %>%
+  #So here instead of randomly picking 1, would be good to
+  #call another function based on the genre and say popularity?
+    sample_n(1)
+data %>%
+  filter(id == as.character(new_song_rn)) %>%
+  select(TrackName)
 }
 
 #sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
 pick_new_song <- function(song_name){
   cluster_number <- get_cluster(get_row(song_name))
+  random_picker(cluster_number)
 }
+pick_new_song("Sandy's Holiday")
 
 #can look at following: cluster, centers, withins, size
 #Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
