@@ -40,41 +40,53 @@ distributions <- data %>%
   theme_classic()
 distributions
 
-
-ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
-ggpairs_1
+#Useful but takes a minute or so to run so commenting out for now
+# ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
+# ggpairs_1
 
 #Puts each song in  a cluster based on ALL numeric discriptors
 cluster_1 <- data %>%
   select(colnames(data[15:27]), -TrackMode) %>%
   kmeans(50,100,1)
-
 clusters <- cluster_1$cluster %>%
   enframe(name = "id") %>%
-  mutate(id = as.character(id))
+  mutate(id = as.character(id)) 
+# %>%
+  # mutate(value = as.character(value))
+
 #Not sure why not merging think it should
-data <- right_join(data, clusters, by = id)  %>%
-  rename_(cluster = value)
+#data <- right_join(data, clusters, by = id)  %>%
+#rename_(cluster = value)
 
 
 
-tibbled <- tibble(data, cluster_1$cluster)
+#tibbled <- tibble(data, cluster_1$cluster)
 
 get_row <- function(song_name){
-  line_number <- tibbled$data$TrackName %>%
+  line_number <- data$TrackName %>%
     str_detect(song_name)
   min(which(line_number == TRUE))
 }
 
-#Object of type class NULL error...hmmm
-get_cluster <- function(row_number){
-  tibbled$cluster_1$cluster %>%
-    slice(row_number)
+
+get_cluster_rows <- function(cluster){
+  clusters$value %>%
+    str_detect(cluster_number)
 }
 
+#Object of type class NULL error...hmmm when trying to use dplyr slice but works with base :O
+get_cluster <- function(row_number){
+  cluster_1$cluster[row_number]
+}
 
-pick_new_song_from_cluster(){
-  #sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
+random_picker <- function(cluster_number){
+  data %>%
+    filter()
+}
+
+#sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
+pick_new_song <- function(song_name){
+  cluster_number <- get_cluster(get_row(song_name))
 }
 
 #can look at following: cluster, centers, withins, size
