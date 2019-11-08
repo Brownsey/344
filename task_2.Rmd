@@ -55,9 +55,33 @@ clusters <- cluster_1$cluster %>%
 #Not sure why not merging think it should
 data <- right_join(data, clusters, by = id)  %>%
   rename_(cluster = value)
+
+
+
+tibbled <- tibble(data, cluster_1$cluster)
+
+get_row <- function(song_name){
+  line_number <- tibbled$data$TrackName %>%
+    str_detect(song_name)
+  min(which(line_number == TRUE))
+}
+
+#Object of type class NULL error...hmmm
+get_cluster <- function(row_number){
+  tibbled$cluster_1$cluster %>%
+    slice(row_number)
+}
+
+
+pick_new_song_from_cluster(){
+  #sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
+}
+
 #can look at following: cluster, centers, withins, size
 #Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
 ```
 Let's look at the distributions of all the datapoints
+
+
 ## Gabriels's Code
 
