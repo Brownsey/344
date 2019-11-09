@@ -1,22 +1,24 @@
 ---
-title: "Task_1_EDA"
-author: "Brownsey"
-date: "28/10/2019"
+title: "Clustering"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tibble)
+library(lubridate)
+library(GGally)
+library(cluster)
+
+spotify <- read_csv("edited_spotify.csv")
 ```
 
 ## Stephen's code
-Loading libraries and code
-```{r, message=FALSE}
-library(tidyverse)
-library(readxl)
-library(lubridate)
-library(GGally)
-data <- read_excel("inst/edited_spotify.xlsx") %>%
+
+```{r data clean, message=FALSE}
+
+clean_data <- spotify %>%
   mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
   #Old-school grepl method
   mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
@@ -27,51 +29,70 @@ data <- read_excel("inst/edited_spotify.xlsx") %>%
   mutate(id = row_number()) %>%
   mutate(id = as.character(id))
 sapply(data, class)
+
 ```
+
+
 Variable distributions
-```{r, message = FALSE}
+
+
+```{r clustering, message = FALSE}
+
 # Not sure why gather doesn't work, looks like it should as all attributes are numeric but anyway
-distributions <- data %>%
+distributions <- clean_data %>%
   gather(key = key, value = value) %>%
-  subset(key %in% colnames(data[15:27])) %>%
+  subset(key %in% colnames(clean_data[15:27])) %>%
   ggplot() +
   geom_density(aes(value)) +
   facet_wrap(~key, scales = "free") +
   theme_classic()
-distributions
 
+#print(distributions) commented out because it takes forever to run
 
-ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
-ggpairs_1
+ggpairs_1 <- ggpairs(data = clean_data, columns = 15:27, title = "GGpairs")
+
+#print(ggpairs_1) see above
 
 #Puts each song in  a cluster based on ALL numeric discriptors
-cluster_1 <- data %>%
-  select(colnames(data[15:27]), -TrackMode) %>%
-  kmeans(50,100,1)
-
+cluster_1 <- clean_data %>%
+  select(colnames(clean_data[15:27]), -TrackMode) %>%
+  kmeans(50,100,1) # done some research and kmeans is apparently quite naive - working on
+                   # an implementation with pam (and pamk). Also need to work on how we
+                   # choose the number of clusters.
 clusters <- cluster_1$cluster %>%
   enframe(name = "id") %>%
   mutate(id = as.character(id))
+
 #Not sure why not merging think it should
-data <- right_join(data, clusters, by = id)  %>%
-  rename_(cluster = value)
+clean_data <- right_join(clean_data, clusters, by = "id")  %>%
+  rename_(cluster = "value")
+tibbled <- tibble(clean_data, cluster_1$cluster)
 
+```
 
+```{r cluster validation}
 
-tibbled <- tibble(data, cluster_1$cluster)
+clusplot(clean_data, clusters, color=TRUE, shade=TRUE,
+   labels=2, lines=0)
 
-get_row <- function(song_name){
+```
+
+```{r getter functions}
+
+get_row <- function(song_name) {
   line_number <- tibbled$data$TrackName %>%
     str_detect(song_name)
-  min(which(line_number == TRUE))
+    
+  return(min(which(line_number)))
 }
 
 #Object of type class NULL error...hmmm
-get_cluster <- function(row_number){
-  tibbled$cluster_1$cluster %>%
+get_cluster <- function(row_number) {
+  cluster_number <- tibbled$cluster_1$cluster %>%
     slice(row_number)
-}
 
+  return(cluster_number)
+}
 
 pick_new_song_from_cluster(){
   #sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
