@@ -1,0 +1,100 @@
+library(readxl)
+edited_spotify <- read_excel("edited_spotify.xlsx")
+View(edited_spotify)
+
+Spotify <- read_excel("edited_spotify.xlsx")
+
+library(dplyr)
+MyData = {Spotify %>% 
+    group_by(Artist,AlbumName,AlbumPopularity) %>% 
+    summarize(AlbumDanceability = mean(TrackDanceability),
+              AlbumLoudness = mean(TrackLoudness),
+              AlbumSpeechiness = mean(TrackSpeechiness),
+              AlbumDuration = mean(TrackDuration),
+              AlbumNumber = mean(TrackNumber),	
+              AlbumEnergy = mean(TrackEnergy),	
+              AlbumKey = mean(TrackKey),	
+              AlbumMode = mean(TrackMode),	
+              AlbumAcousticness = mean(TrackAcousticness),	
+              AlbumInstrumentalness = mean(TrackInstrumentalness),	
+              AlbumLiveness = mean(TrackLiveness),
+              AlbumValence = mean(TrackValence),
+              AlbumTempo = mean(TrackTempo),	
+              AlbumTimeSignature = mean(TrackTimeSignature) )}
+
+library(lubridate)
+MyData$AlbumPopularity=parse_date_time(MyData$AlbumPopularity,orders=c("y","ym","ymd"))
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8, fig.height = 5)
+require(dplyr)
+require(ggplot2)
+plotpopularity.danceability <- {MyData %>% ggplot(aes(x = AlbumDanceability,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.danceability
+
+plotpopularity.loudness <- {MyData %>% ggplot(aes(x = AlbumLoudness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.loudness
+YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+
+plotpopularity.number <- {MyData %>% ggplot(aes(x = AlbumNumber,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.number
+
+plotpopularity.energy <- {MyData %>% ggplot(aes(x = AlbumEnergy,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.energy
+
+plotpopularity.speechiness <- {MyData %>% ggplot(aes(x = AlbumSpeechiness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.speechiness
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+plotpopularity.duration <- {MyData %>% ggplot(aes(x = AlbumDuration,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.duration
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+plotpopularity.key <- {MyData %>% ggplot(aes(x = AlbumKey,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.key
+YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+
+plotpopularity.mode <- {MyData %>% ggplot(aes(x = AlbumMode,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.mode
+YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+
+plotpopularity.acousticness <- {MyData %>% ggplot(aes(x = AlbumAcousticness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.acousticness
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
+plotpopularity.instrumentalness <- {MyData %>% ggplot(aes(x = AlbumInstrumentalness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.instrumentalness
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+plotpopularity.liveness <- {MyData %>% ggplot(aes(x = AlbumLiveness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.liveness
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
+plotpopularity.valence <- {MyData %>% ggplot(aes(x = AlbumValence,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.valence
+
+plotpopularity.tempo <- {MyData %>% ggplot(aes(x = AlbumTempo,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.tempo
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
+plotpopularity.timesignature <- {MyData %>% ggplot(aes(x = AlbumTimeSignature,y = AlbumPopularity))} + geom_point()  + geom_smooth()
+plotpopularity.timesignature
+YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+
+
+popularity <- read("edited_spotify.xlsx",stringsAsFactors = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
