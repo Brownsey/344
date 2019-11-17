@@ -13,14 +13,18 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Yuhan's Code
 Explatory data analysis into popularity
-```{r, message=FALSE)}
-library(readxl)
-edited_spotify <- read_excel("edited_spotify.xlsx")
-View(edited_spotify)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
+```{r}
+library(readxl)
+#edited_spotify <- read_excel("edited_spotify.xlsx")
+#View(edited_spotify)
 Spotify <- read_excel("edited_spotify.xlsx")
 
 library(dplyr)
+
 MyData = {Spotify %>% 
     group_by(Artist,AlbumName,AlbumPopularity) %>% 
     summarize(AlbumDanceability = mean(TrackDanceability),
@@ -38,55 +42,117 @@ MyData = {Spotify %>%
               AlbumTempo = mean(TrackTempo),	
               AlbumTimeSignature = mean(TrackTimeSignature) )}
 
-library(lubridate)
-MyData$AlbumPopularity=parse_date_time(MyData$AlbumPopularity,orders=c("y","ym","ymd"))
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-knitr::opts_chunk$set(echo = TRUE, fig.width = 8, fig.height = 5)
-require(dplyr)
+#the mean method
+
+MyData1 = {Spotify %>% 
+    group_by(ArtistPopularity) %>% 
+    summarize(ArtistDanceability = mean(TrackDanceability),
+              ArtistLoudness = mean(TrackLoudness),
+              ArtistSpeechiness = mean(TrackSpeechiness),
+              ArtistDuration = mean(TrackDuration),
+              ArtistNumber = mean(TrackNumber),	
+              ArtistEnergy = mean(TrackEnergy),	
+              ArtistKey = mean(TrackKey),	
+              ArtistMode = mean(TrackMode),	
+              ArtistAcousticness = mean(TrackAcousticness),	
+              ArtistInstrumentalness = mean(TrackInstrumentalness),	
+              ArtistLiveness = mean(TrackLiveness),
+              ArtistValence = mean(TrackValence),
+              ArtistTempo = mean(TrackTempo),	
+              ArtistTimeSignature = mean(TrackTimeSignature) )}
+
+
+
+library(GGally)
+
 require(ggplot2)
-plotpopularity.danceability <- {MyData %>% ggplot(aes(x = AlbumDanceability,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.danceability
+library(lubridate)
+ggpairs(MyData1)
 
-plotpopularity.loudness <- {MyData %>% ggplot(aes(x = AlbumLoudness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.loudness
-YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 
-plotpopularity.number <- {MyData %>% ggplot(aes(x = AlbumNumber,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.number
+MyData1 %>% ggplot(aes(x =ArtistDanceability,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
-plotpopularity.energy <- {MyData %>% ggplot(aes(x = AlbumEnergy,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.energy
+MyData1 %>% ggplot(aes(x = ArtistLoudness,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
-plotpopularity.speechiness <- {MyData %>% ggplot(aes(x = AlbumSpeechiness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.speechiness
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-plotpopularity.duration <- {MyData %>% ggplot(aes(x = AlbumDuration,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.duration
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+MyData1 %>% ggplot(aes(x =  ArtistEnergy ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
-plotpopularity.key <- {MyData %>% ggplot(aes(x = AlbumKey,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.key
-YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+MyData1 %>% ggplot(aes(x =  ArtistTimeSignature   ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
-plotpopularity.mode <- {MyData %>% ggplot(aes(x = AlbumMode,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.mode
-YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 
-plotpopularity.acousticness <- {MyData %>% ggplot(aes(x = AlbumAcousticness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.acousticness
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 
-plotpopularity.instrumentalness <- {MyData %>% ggplot(aes(x = AlbumInstrumentalness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.instrumentalness
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+library(leaps)
 
-plotpopularity.liveness <- {MyData %>% ggplot(aes(x = AlbumLiveness,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.liveness
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+#all subsets regression
+m <- regsubsets( ArtistPopularity ~ ., data = MyData1)
 
-plotpopularity.valence <- {MyData %>% ggplot(aes(x = AlbumValence,y = AlbumPopularity))} + geom_point()  + geom_smooth()
-plotpopularity.valence
+summary(m)
+
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#a selected best model by BIC
+m1 <- lm(ArtistPopularity ~ ArtistDanceability + ArtistAcousticness + ArtistValence,data=MyData1)
+summary(m1)
+
+
+
+MyData2 = {Spotify %>% 
+    group_by(AlbumPopularity) %>% 
+    summarize(AlbumDanceability = mean(TrackDanceability),
+              AlbumLoudness = mean(TrackLoudness),
+              AlbumSpeechiness = mean(TrackSpeechiness),
+              AlbumDuration = mean(TrackDuration),
+              AlbumNumber = mean(TrackNumber),	
+              AlbumEnergy = mean(TrackEnergy),	
+              AlbumKey = mean(TrackKey),	
+              AlbumMode = mean(TrackMode),	
+              AlbumAcousticness = mean(TrackAcousticness),	
+              AlbumInstrumentalness = mean(TrackInstrumentalness),	
+              AlbumLiveness = mean(TrackLiveness),
+              AlbumValence = mean(TrackValence),
+              AlbumTempo = mean(TrackTempo),	
+              AlbumTimeSignature = mean(TrackTimeSignature) )}
+
+
+ggpairs(MyData2)
+
+MyData2 %>% ggplot(aes(x =AlbumDanceability,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+MyData2 %>% ggplot(aes(x = AlbumLoudness,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+
+MyData2 %>% ggplot(aes(x =  AlbumEnergy ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+MyData2 %>% ggplot(aes(x =  AlbumTimeSignature   ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+
+
+
+#all subsets regression
+m <- regsubsets( AlbumPopularity ~ ., data = MyData2)
+
+summary(m)
+
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#a selected best model by BIC
+m1 <- lm(AlbumPopularity ~ AlbumDanceability + AlbumAcousticness + AlbumValence,data=MyData2)
+summary(m1)
+
+
 ```
-
