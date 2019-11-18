@@ -23,9 +23,85 @@ library(readxl)
 #View(edited_spotify)
 Spotify <- read_excel("edited_spotify.xlsx")
 
+
+
+clean_data <- Spotify %>%
+
+  mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
+
+  #Old-school grepl method
+
+  mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
+
+  #Tidyverse str_detect method
+
+  mutate(Artist = ifelse(Artist %>% 
+
+                           str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
+
+  mutate(Artist = ifelse(AlbumBestChartPosition %>% 
+
+                           str_detect("#N/A"), 0, Artist)) %>%
+
+  na.omit() %>%
+
+  mutate(id = row_number()) %>%
+
+  mutate(id = as.character(id))
+
+test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
+
+                                 (AlbumName == "Action!") |
+
+                                 (AlbumName == "Selling England By The Pound") |
+
+                                 (AlbumName == "Carpenters") | 
+
+                                 (AlbumName == "Ride On") |
+
+                                 (AlbumName == "Autoamerican") |
+
+                                 (AlbumName == "Selected Ambient Works 85-92") |    
+
+                                 (AlbumName == "Different Class") |
+
+                                 (AlbumName == "O") |
+
+                                 (AlbumName == "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") |
+
+                                 (AlbumName == "AM") |
+
+                                 (AlbumName == "An Awesome Wave")))
+
+
+
+training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") & 
+
+                                     (AlbumName != "Action!") &
+
+                                     (AlbumName != "Selling England By The Pound") &
+
+                                     (AlbumName != "Carpenters") & 
+
+                                     (AlbumName != "Ride On") &
+
+                                     (AlbumName != "Autoamerican") &
+
+                                     (AlbumName != "Selected Ambient Works 85-92") &    
+
+                                     (AlbumName != "Different Class") &
+
+                                     (AlbumName != "O") &
+
+                                     (AlbumName != "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") &
+
+                                     (AlbumName != "AM") &
+
+                                     (AlbumName != "An Awesome Wave")))
+
 library(dplyr)
 
-MyData = {Spotify %>% 
+MyData = {training_data %>% 
     group_by(Artist,AlbumName,AlbumPopularity) %>% 
     summarize(AlbumDanceability = mean(TrackDanceability),
               AlbumLoudness = mean(TrackLoudness),
@@ -45,7 +121,7 @@ MyData = {Spotify %>%
 
 #the mean method
 
-MyData1 = {Spotify %>% 
+MyData1 = {training_data %>% 
     group_by(ArtistPopularity) %>% 
     summarize(ArtistDanceability = mean(TrackDanceability),
               ArtistLoudness = mean(TrackLoudness),
@@ -71,21 +147,21 @@ library(lubridate)
 ggpairs(MyData1)
 
 
-MyData1 %>% ggplot(aes(x =ArtistDanceability,y = ArtistPopularity)) + geom_point()  + geom_smooth()
+training_data %>% ggplot(aes(x =ArtistDanceability,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
-MyData1 %>% ggplot(aes(x = ArtistLoudness,y = ArtistPopularity)) + geom_point()  + geom_smooth()
+training_data %>% ggplot(aes(x = ArtistLoudness,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
 
-MyData1 %>% ggplot(aes(x =  ArtistEnergy ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
+training_data %>% ggplot(aes(x =  ArtistEnergy ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
-MyData1 %>% ggplot(aes(x =  ArtistTimeSignature   ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
+training_data %>% ggplot(aes(x =  ArtistTimeSignature   ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
 
 
 
 library(leaps)
 
 #all subsets regression
-m <- regsubsets( ArtistPopularity ~ ., data = MyData1)
+m <- regsubsets( ArtistPopularity ~ ., data = training_data)
 
 summary(m)
 
@@ -99,12 +175,12 @@ plot(m, scale = "adjr2")
 
 
 #a selected best model by BIC
-m1 <- lm(ArtistPopularity ~ ArtistDanceability + ArtistAcousticness + ArtistValence,data=MyData1)
+m1 <- lm(ArtistPopularity ~ ArtistDanceability + ArtistAcousticness + ArtistValence,data=training_data)
 summary(m1)
 
 
 
-MyData2 = {Spotify %>% 
+MyData2 = {training_data %>% 
     group_by(AlbumPopularity) %>% 
     summarize(AlbumDanceability = mean(TrackDanceability),
               AlbumLoudness = mean(TrackLoudness),
