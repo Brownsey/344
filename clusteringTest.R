@@ -7,7 +7,7 @@ library(cluster)
 library(VIM)
 library(fpc)
 
-spotify.clustering <- read_csv("edited_spotify.csv")
+spotify.clustering <- read_csv("inst/edited_spotify.csv")
 
 clean_data <- spotify.clustering %>%
   mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
@@ -57,9 +57,9 @@ training_data <- training_data[c("TrackDuration", "TrackDanceability",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
                                  "TrackTempo")]
 
-clusters <- pam(training_data, 30)
+clusters <- pam(training_data, 6)
 
-plotcluster(training_data, clusters$cluster)#, color = TRUE, shade = TRUE, labels = 2, lines = 0)
+plotcluster(training_data, clusters$cluster, color = TRUE, shade = TRUE, labels = 2, lines = 0)
 
 
 "
