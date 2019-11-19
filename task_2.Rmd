@@ -149,4 +149,14 @@ Let's look at the distributions of all the datapoints
 
 
 ## Gabriels's Code
+ expenential -0 is the maybe the way to go (scaled)
+ database of thousands of songs - maybe be wary of outliers and such not
+ simply twidderlerably parameters, raising questions so our model +how could we improve
+ scaleability
+ MEAN - PROVIDE SOME INFORMATION BUT LOSES ALOT OF DATAPOINTS. 
+ WHY RATHER THAN ACTUAL METHOD, TALK ABOUT METHODOLOGY - MORE IMPORTANT
+ think about aim of the recommendation - element of exploration - objective function
+ WHAT WE FOUND OUT WHAT WE CONCLUDE AND WHAT WE RECOMMEND AND BUILD A REPORT ABOUT THAT AND SJUSTIFY WHAT WE HAVE DONE - WEEK 1 STAT INVESTICATION CYCLE
+can look at following: cluster, centers, withins, size
+Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
 
