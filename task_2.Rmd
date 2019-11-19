@@ -19,6 +19,8 @@ spotify <- read_csv("edited_spotify.csv")
 ```{r data clean, message=FALSE}
 
 clean_data <- spotify %>%
+library(class)
+data <- read_excel("inst/edited_spotify.xlsx") %>%
   mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
   #Old-school grepl method
   mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
@@ -27,7 +29,8 @@ clean_data <- spotify %>%
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
   na.omit() %>%
   mutate(id = row_number()) %>%
-  mutate(id = as.character(id))
+  mutate(id = as.character(id)) %>%
+  filter(TrackName != "Sandy's Holiday")
 sapply(data, class)
 
 ```
@@ -46,6 +49,7 @@ distributions <- clean_data %>%
   geom_density(aes(value)) +
   facet_wrap(~key, scales = "free") +
   theme_classic()
+
 
 #print(distributions) commented out because it takes forever to run
 
@@ -67,7 +71,6 @@ clusters <- cluster_1$cluster %>%
 clean_data <- right_join(clean_data, clusters, by = "id")  %>%
   rename_(cluster = "value")
 tibbled <- tibble(clean_data, cluster_1$cluster)
-
 ```
 
 ```{r cluster validation}
@@ -75,28 +78,69 @@ tibbled <- tibble(clean_data, cluster_1$cluster)
 clusplot(clean_data, clusters, color=TRUE, shade=TRUE,
    labels=2, lines=0)
 
+#Useful but takes a minute or so to run so commenting out for now
+# ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
+# ggpairs_1
+
+#Puts each song in  a cluster based on ALL numeric discriptors
+cluster_1 <- data %>%
+  select(colnames(data[15:27]), -TrackMode) %>%
+  kmeans(50,100,1)
+clusters <- cluster_1$cluster %>%
+  enframe(name = "id") %>%
+  mutate(id = as.character(id)) 
+
+#Not sure why not merging think it should
+#data <- right_join(data, clusters, by = id)  %>%
+#rename_(cluster = value)
+
+
+
+#tibbled <- tibble(data, cluster_1$cluster)
+
 ```
 
-```{r getter functions}
 
-get_row <- function(song_name) {
-  line_number <- tibbled$data$TrackName %>%
+```{r getter_functions}
+get_knn <- function(){
+  
+}
+
+get_row <- function(song_name){
+  line_number <- data$TrackName %>%
     str_detect(song_name)
     
   return(min(which(line_number)))
 }
 
-#Object of type class NULL error...hmmm
-get_cluster <- function(row_number) {
-  cluster_number <- tibbled$cluster_1$cluster %>%
-    slice(row_number)
-
-  return(cluster_number)
+get_cluster_rows <- function(cluster_number){
+  clusters %>%
+    filter(value == cluster_number) %>%
+    select(id) 
+  #Need to remove song currently listening to
 }
 
-pick_new_song_from_cluster(){
-  #sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
+#Object of type class NULL error...hmmm when trying to use dplyr slice but works with base :O
+get_cluster <- function(row_number){
+  cluster_1$cluster[row_number]
 }
+
+random_picker <- function(cluster_number){
+new_song_rn <- get_cluster_rows(cluster_number) %>%
+  #So here instead of randomly picking 1, would be good to
+  #call another function based on the genre and say popularity?
+    sample_n(1)
+data %>%
+  filter(id == as.character(new_song_rn)) %>%
+  select(TrackName)
+}
+
+#sudo - subset data based on cluster and remove existing song -> then pick one of remaining songs.
+pick_new_song <- function(song_name){
+  cluster_number <- get_cluster(get_row(song_name))
+  random_picker(cluster_number)
+}
+pick_new_song("Sandy's Holiday")
 
 #can look at following: cluster, centers, withins, size
 #Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
