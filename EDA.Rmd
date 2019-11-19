@@ -1,0 +1,317 @@
+---
+title: "EDA"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(tidyverse)
+library(lubridate)
+library(GGally)
+library(cluster)
+library(VIM)
+library(fpc)
+library(leaps)
+
+```
+
+Firstly, we'll setup the import the dataset and split it into training and test data.
+```{r code setup}
+spotify.clustering <- read_csv("inst/edited_spotify.csv")
+
+clean_data <- spotify.clustering %>%
+  mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
+  #Old-school grepl method
+  mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
+  #Tidyverse str_detect method
+  mutate(Artist = ifelse(Artist %>% 
+                           str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
+  mutate(Artist = ifelse(AlbumBestChartPosition %>% 
+                           str_detect("#N/A"), 0, Artist)) %>%
+  na.omit() %>%
+  mutate(id = row_number()) %>%
+  mutate(id = as.character(id))
+sapply(data, class)
+
+aggr(clean_data) # checks for missing data
+
+test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
+                                 (AlbumName == "Action!") |
+                                 (AlbumName == "Selling England By The Pound") |
+                                 (AlbumName == "Carpenters") | 
+                                 (AlbumName == "Ride On") |
+                                 (AlbumName == "Autoamerican") |
+                                 (AlbumName == "Selected Ambient Works 85-92") |    
+                                 (AlbumName == "Different Class") |
+                                 (AlbumName == "O") |
+                                 (AlbumName == "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") |
+                                 (AlbumName == "AM") |
+                                 (AlbumName == "An Awesome Wave")))
+
+training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") & 
+                                     (AlbumName != "Action!") &
+                                     (AlbumName != "Selling England By The Pound") &
+                                     (AlbumName != "Carpenters") & 
+                                     (AlbumName != "Ride On") &
+                                     (AlbumName != "Autoamerican") &
+                                     (AlbumName != "Selected Ambient Works 85-92") &    
+                                     (AlbumName != "Different Class") &
+                                     (AlbumName != "O") &
+                                     (AlbumName != "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") &
+                                     (AlbumName != "AM") &
+                                     (AlbumName != "An Awesome Wave")))
+
+training_data <- training_data[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo")]
+```
+
+
+## General EDA
+```{r summarisies}
+MyData = {training_data %>% 
+    group_by(Artist,AlbumName,AlbumPopularity) %>% 
+    summarize(AlbumDanceability = mean(TrackDanceability),
+              AlbumLoudness = mean(TrackLoudness),
+              AlbumSpeechiness = mean(TrackSpeechiness),
+              AlbumDuration = mean(TrackDuration),
+              AlbumNumber = mean(TrackNumber),	
+              AlbumEnergy = mean(TrackEnergy),	
+              AlbumKey = mean(TrackKey),	
+              AlbumMode = mean(TrackMode),	
+              AlbumAcousticness = mean(TrackAcousticness),	
+              AlbumInstrumentalness = mean(TrackInstrumentalness),	
+              AlbumLiveness = mean(TrackLiveness),
+              AlbumValence = mean(TrackValence),
+              AlbumTempo = mean(TrackTempo),	
+              AlbumTimeSignature = mean(TrackTimeSignature) )}
+
+
+#the mean method
+
+MyData1 = {training_data %>% 
+    group_by(ArtistPopularity) %>% 
+    summarize(ArtistDanceability = mean(TrackDanceability),
+              ArtistLoudness = mean(TrackLoudness),
+              ArtistSpeechiness = mean(TrackSpeechiness),
+              ArtistDuration = mean(TrackDuration),
+              ArtistNumber = mean(TrackNumber),	
+              ArtistEnergy = mean(TrackEnergy),	
+              ArtistKey = mean(TrackKey),	
+              ArtistMode = mean(TrackMode),	
+              ArtistAcousticness = mean(TrackAcousticness),	
+              ArtistInstrumentalness = mean(TrackInstrumentalness),	
+              ArtistLiveness = mean(TrackLiveness),
+              ArtistValence = mean(TrackValence),
+              ArtistTempo = mean(TrackTempo),	
+              ArtistTimeSignature = mean(TrackTimeSignature) )}
+
+
+```
+
+## Specific Task 1 EDA
+```{r album popularity}
+MyData2 = {training_data %>% 
+    group_by(AlbumPopularity) %>% 
+    summarize(AlbumDanceability = mean(TrackDanceability),
+              AlbumLoudness = mean(TrackLoudness),
+              AlbumSpeechiness = mean(TrackSpeechiness),
+              AlbumDuration = mean(TrackDuration),
+              AlbumNumber = mean(TrackNumber),	
+              AlbumEnergy = mean(TrackEnergy),	
+              AlbumKey = mean(TrackKey),	
+              AlbumMode = mean(TrackMode),	
+              AlbumAcousticness = mean(TrackAcousticness),	
+              AlbumInstrumentalness = mean(TrackInstrumentalness),	
+              AlbumLiveness = mean(TrackLiveness),
+              AlbumValence = mean(TrackValence),
+              AlbumTempo = mean(TrackTempo),	
+              AlbumTimeSignature = mean(TrackTimeSignature) )}
+
+#ggpairs(MyData2)
+
+MyData2 %>% ggplot(aes(x =AlbumDanceability,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+MyData2 %>% ggplot(aes(x = AlbumLoudness,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+MyData2 %>% ggplot(aes(x =  AlbumEnergy ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+
+MyData2 %>% ggplot(aes(x =  AlbumTimeSignature   ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
+```
+
+
+
+```{r leaps}
+#all subsets regression
+m <- regsubsets( ArtistPopularity ~ ., data = training_data)
+
+summary(m)
+
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#a selected best model by BIC
+m1 <- lm(ArtistPopularity ~ ArtistDanceability + ArtistAcousticness + ArtistValence,data=training_data)
+summary(m1)
+
+#all subsets regression
+m <- regsubsets( AlbumPopularity ~ ., data = MyData2)
+
+summary(m)
+
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#a selected best model by BIC
+m1 <- lm(AlbumPopularity ~ AlbumDanceability + AlbumAcousticness + AlbumValence,data=MyData2)
+summary(m1)
+
+
+```
+## Specific Task 2 EDA
+Things I want to do:
+
+  - figure out which factors are relevant and how to remove the useless ones;
+  - try and figure out a number of clusters (maybe use pamk() in the  fpc package),
+    or maybe by using the genre strings to create a set of theoretical clusters;
+  - test out the nstart option in kmeans();
+  - use pam() instead of kmeans();
+  - try other clustering algorithms that don't require a number of clusters;
+  - write a weighting function to use on songs.  
+```{r clustering}
+#Genre analysis using stringr to extract the most commonly appearing words
+spotify.genres <- read_csv("inst/edited_spotify.csv") %>% 
+  mutate(ArtistGenres = strsplit(ArtistGenres, ","))
+
+genres <- na.omit(unique(unlist(spotify.genres$ArtistGenres)))
+
+split_genres <- NULL
+
+for(i in 1:length(genres)) {
+  split_genres[i] <- strsplit(genres[i], " ")
+}
+
+genre_words <- unlist(split_genres)
+
+unique_genre_words <- unique(genre_words)
+
+genre_words_table <- subset(as.data.frame(table(genre_words)), (Freq > 7))
+
+genre_freq_plot <- ggplot(data = genre_words_table, aes(x=genre_words, y=Freq)) + geom_col()
+
+print(genre_freq_plot)
+
+#Looking at the clusters with 6 as shown from the genre analysis
+clusters <- pam(training_data, 6)
+plotcluster(training_data, clusters$cluster, color = TRUE, shade = TRUE, labels = 2, lines = 0)
+```
+
+Code from clustering.rmd
+```{r find genres}
+
+genres <- mutate(training_data, ArtistGenres = strsplit(ArtistGenres, ","))$ArtistGenres %>% 
+  unlist() %>% unique() %>% na.omit()
+
+split_genres <- NULL
+
+for(i in 1:length(genres)) {
+  split_genres[i] <- strsplit(genres[i], " ")
+}
+
+genre_words <- unlist(split_genres)
+
+genre_words <- replace(genre_words, (genre_words == "hip" | genre_words == "hop"), "hip-hop")
+
+unique_genre_words <- unique(genre_words)
+
+genre_freq_plot <- subset(as.data.frame(table(genre_words)), (Freq > 8)) %>% 
+  ggplot(aes(x=genre_words, y=Freq)) + geom_col()
+
+print(genre_freq_plot)
+
+```
+
+```{r link genres to tracks}
+
+# associate tracks that have multiple genres with the most frequent genre (since these will be broader)
+
+training_data <- training_data %>% mutate(TrueCluster = (row_number()-row_number()))
+
+for(i in 1:length(training_data$ArtistID)) {
+  if(str_detect(training_data$ArtistGenres[i], "folk")) {training_data$TrueCluster[i] <- 5}
+  if(str_detect(training_data$ArtistGenres[i], "indie")) {training_data$TrueCluster[i] <- 4}
+  if(str_detect(training_data$ArtistGenres[i], "hip")) {training_data$TrueCluster[i] <- 3}
+  if(str_detect(training_data$ArtistGenres[i], "hop")) {training_data$TrueCluster[i] <- 3}
+  if(str_detect(training_data$ArtistGenres[i], "pop")) {training_data$TrueCluster[i] <- 2}
+  if(str_detect(training_data$ArtistGenres[i], "rock")) {training_data$TrueCluster[i] <- 1}
+}
+
+View(training_data)
+```
+
+```{r clustering}
+
+clustering_training_data <- training_data[c("TrackDuration", "TrackDanceability",
+                                            "TrackEnergy", "TrackKey", "TrackLoudness",
+                                            "TrackSpeechiness", "TrackAcousticness",
+                                            "TrackInstrumentalness", "TrackLiveness", 
+                                            "TrackValence", "TrackTempo")]
+
+clusters <- pam(clustering_training_data, 6)
+
+plotcluster(clustering_training_data, clusters$cluster)
+
+```
+
+
+EDA code from task_2
+Variable distributions
+```{r clustering, message = FALSE}
+
+# Not sure why gather doesn't work, looks like it should as all attributes are numeric but anyway
+# distributions <- clean_data %>%
+#   gather(key = key, value = value) %>%
+#   subset(key %in% colnames(clean_data[15:27])) %>%
+#   ggplot() +
+#   geom_density(aes(value)) +
+#   facet_wrap(~key, scales = "free") +
+#   theme_classic()
+
+
+#print(distributions) commented out because it takes forever to run
+
+ggpairs_1 <- ggpairs(data = clean_data, columns = 15:27, title = "GGpairs")
+
+#print(ggpairs_1) see above
+
+#Puts each song in  a cluster based on ALL numeric discriptors
+cluster_1 <- clean_data %>%
+  select(colnames(clean_data[15:27]), -TrackMode) %>%
+  kmeans(50,100,1)
+clusters <- cluster_1$cluster %>%
+  enframe(name = "id") %>%
+  mutate(id = as.character(id))
+
+#Not sure why not merging think it should
+clean_data <- right_join(clean_data, clusters, by = "id")  %>%
+  rename_(cluster = "value")
+tibbled <- tibble(clean_data, cluster_1$cluster)
+```
+

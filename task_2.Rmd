@@ -10,96 +10,74 @@ library(tibble)
 library(lubridate)
 library(GGally)
 library(cluster)
-
-spotify <- read_csv("edited_spotify.csv")
 ```
 
-## Stephen's code
+## Task Implementation
+Done some research and kmeans is apparently quite naive - working on
+an implementation with pam (and pamk). Also need to work on how we
+choose the number of clusters.
 
 ```{r data clean, message=FALSE}
 
-clean_data <- spotify %>%
-library(class)
-data <- read_excel("inst/edited_spotify.xlsx") %>%
+spotify.clustering <- read_csv("inst/edited_spotify.csv")
+
+clean_data <- spotify.clustering %>%
   mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
   #Old-school grepl method
   mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
   #Tidyverse str_detect method
   mutate(Artist = ifelse(Artist %>% 
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
+  mutate(Artist = ifelse(AlbumBestChartPosition %>% 
+                           str_detect("#N/A"), 0, Artist)) %>%
   na.omit() %>%
   mutate(id = row_number()) %>%
-  mutate(id = as.character(id)) %>%
-  filter(TrackName != "Sandy's Holiday")
+  mutate(id = as.character(id))
 sapply(data, class)
 
+aggr(clean_data) # checks for missing data
+
+test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
+                                 (AlbumName == "Action!") |
+                                 (AlbumName == "Selling England By The Pound") |
+                                 (AlbumName == "Carpenters") | 
+                                 (AlbumName == "Ride On") |
+                                 (AlbumName == "Autoamerican") |
+                                 (AlbumName == "Selected Ambient Works 85-92") |    
+                                 (AlbumName == "Different Class") |
+                                 (AlbumName == "O") |
+                                 (AlbumName == "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") |
+                                 (AlbumName == "AM") |
+                                 (AlbumName == "An Awesome Wave")))
+
+training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") & 
+                                     (AlbumName != "Action!") &
+                                     (AlbumName != "Selling England By The Pound") &
+                                     (AlbumName != "Carpenters") & 
+                                     (AlbumName != "Ride On") &
+                                     (AlbumName != "Autoamerican") &
+                                     (AlbumName != "Selected Ambient Works 85-92") &    
+                                     (AlbumName != "Different Class") &
+                                     (AlbumName != "O") &
+                                     (AlbumName != "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") &
+                                     (AlbumName != "AM") &
+                                     (AlbumName != "An Awesome Wave")))
+
+training_data <- training_data[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo")]
+
 ```
 
 
-Variable distributions
-
-
-```{r clustering, message = FALSE}
-
-# Not sure why gather doesn't work, looks like it should as all attributes are numeric but anyway
-distributions <- clean_data %>%
-  gather(key = key, value = value) %>%
-  subset(key %in% colnames(clean_data[15:27])) %>%
-  ggplot() +
-  geom_density(aes(value)) +
-  facet_wrap(~key, scales = "free") +
-  theme_classic()
-
-
-#print(distributions) commented out because it takes forever to run
-
-ggpairs_1 <- ggpairs(data = clean_data, columns = 15:27, title = "GGpairs")
-
-#print(ggpairs_1) see above
-
-#Puts each song in  a cluster based on ALL numeric discriptors
-cluster_1 <- clean_data %>%
-  select(colnames(clean_data[15:27]), -TrackMode) %>%
-  kmeans(50,100,1) # done some research and kmeans is apparently quite naive - working on
-                   # an implementation with pam (and pamk). Also need to work on how we
-                   # choose the number of clusters.
-clusters <- cluster_1$cluster %>%
-  enframe(name = "id") %>%
-  mutate(id = as.character(id))
-
-#Not sure why not merging think it should
-clean_data <- right_join(clean_data, clusters, by = "id")  %>%
-  rename_(cluster = "value")
-tibbled <- tibble(clean_data, cluster_1$cluster)
-```
-
-```{r cluster validation}
-
-clusplot(clean_data, clusters, color=TRUE, shade=TRUE,
-   labels=2, lines=0)
-
-#Useful but takes a minute or so to run so commenting out for now
-# ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
-# ggpairs_1
-
-#Puts each song in  a cluster based on ALL numeric discriptors
+Defines the clustering of the training data
+```{r clustering}
 cluster_1 <- data %>%
   select(colnames(data[15:27]), -TrackMode) %>%
   kmeans(50,100,1)
-clusters <- cluster_1$cluster %>%
-  enframe(name = "id") %>%
-  mutate(id = as.character(id)) 
-
-#Not sure why not merging think it should
-#data <- right_join(data, clusters, by = id)  %>%
-#rename_(cluster = value)
-
-
-
-#tibbled <- tibble(data, cluster_1$cluster)
-
 ```
-
 
 ```{r getter_functions}
 get_knn <- function(){
@@ -145,8 +123,6 @@ pick_new_song("Sandy's Holiday")
 #can look at following: cluster, centers, withins, size
 #Could simply link each song to a cluster, pick nother song from that cluster based on a probabilty linked to popularity of the song and maybe an artist variables as well, as in pick same artist with higher prob if it is in the cluster
 ```
-Let's look at the distributions of all the datapoints
-
 
 ## Gabriels's Code
  expenential -0 is the maybe the way to go (scaled)

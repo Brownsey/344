@@ -1,7 +1,5 @@
 ---
-title: "Task_1_EDA"
-author: "Brownsey"
-date: "28/10/2019"
+title: "Task_1"
 output: pdf_document
 ---
 
@@ -9,226 +7,67 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Andrei's code
-
-## Yuhan's Code
-Explatory data analysis into popularity
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r}
-library(readxl)
-#edited_spotify <- read_excel("edited_spotify.xlsx")
-#View(edited_spotify)
-Spotify <- read_excel("edited_spotify.xlsx")
-
-
-
-clean_data <- Spotify %>%
-
-  mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
-
-  #Old-school grepl method
-
-  mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
-
-  #Tidyverse str_detect method
-
-  mutate(Artist = ifelse(Artist %>% 
-
-                           str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
-
-  mutate(Artist = ifelse(AlbumBestChartPosition %>% 
-
-                           str_detect("#N/A"), 0, Artist)) %>%
-
-  na.omit() %>%
-
-  mutate(id = row_number()) %>%
-
-  mutate(id = as.character(id))
-
-test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
-
-                                 (AlbumName == "Action!") |
-
-                                 (AlbumName == "Selling England By The Pound") |
-
-                                 (AlbumName == "Carpenters") | 
-
-                                 (AlbumName == "Ride On") |
-
-                                 (AlbumName == "Autoamerican") |
-
-                                 (AlbumName == "Selected Ambient Works 85-92") |    
-
-                                 (AlbumName == "Different Class") |
-
-                                 (AlbumName == "O") |
-
-                                 (AlbumName == "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") |
-
-                                 (AlbumName == "AM") |
-
-                                 (AlbumName == "An Awesome Wave")))
-
-
-
-training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") & 
-
-                                     (AlbumName != "Action!") &
-
-                                     (AlbumName != "Selling England By The Pound") &
-
-                                     (AlbumName != "Carpenters") & 
-
-                                     (AlbumName != "Ride On") &
-
-                                     (AlbumName != "Autoamerican") &
-
-                                     (AlbumName != "Selected Ambient Works 85-92") &    
-
-                                     (AlbumName != "Different Class") &
-
-                                     (AlbumName != "O") &
-
-                                     (AlbumName != "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") &
-
-                                     (AlbumName != "AM") &
-
-                                     (AlbumName != "An Awesome Wave")))
-
-library(dplyr)
-
-MyData = {training_data %>% 
-    group_by(Artist,AlbumName,AlbumPopularity) %>% 
-    summarize(AlbumDanceability = mean(TrackDanceability),
-              AlbumLoudness = mean(TrackLoudness),
-              AlbumSpeechiness = mean(TrackSpeechiness),
-              AlbumDuration = mean(TrackDuration),
-              AlbumNumber = mean(TrackNumber),	
-              AlbumEnergy = mean(TrackEnergy),	
-              AlbumKey = mean(TrackKey),	
-              AlbumMode = mean(TrackMode),	
-              AlbumAcousticness = mean(TrackAcousticness),	
-              AlbumInstrumentalness = mean(TrackInstrumentalness),	
-              AlbumLiveness = mean(TrackLiveness),
-              AlbumValence = mean(TrackValence),
-              AlbumTempo = mean(TrackTempo),	
-              AlbumTimeSignature = mean(TrackTimeSignature) )}
-
-
-#the mean method
-
-MyData1 = {training_data %>% 
-    group_by(ArtistPopularity) %>% 
-    summarize(ArtistDanceability = mean(TrackDanceability),
-              ArtistLoudness = mean(TrackLoudness),
-              ArtistSpeechiness = mean(TrackSpeechiness),
-              ArtistDuration = mean(TrackDuration),
-              ArtistNumber = mean(TrackNumber),	
-              ArtistEnergy = mean(TrackEnergy),	
-              ArtistKey = mean(TrackKey),	
-              ArtistMode = mean(TrackMode),	
-              ArtistAcousticness = mean(TrackAcousticness),	
-              ArtistInstrumentalness = mean(TrackInstrumentalness),	
-              ArtistLiveness = mean(TrackLiveness),
-              ArtistValence = mean(TrackValence),
-              ArtistTempo = mean(TrackTempo),	
-              ArtistTimeSignature = mean(TrackTimeSignature) )}
-
-
-
-library(GGally)
-
-require(ggplot2)
+```{r libraries}
+library(tidyverse)
 library(lubridate)
-ggpairs(MyData1)
-
-
-training_data %>% ggplot(aes(x =ArtistDanceability,y = ArtistPopularity)) + geom_point()  + geom_smooth()
-
-training_data %>% ggplot(aes(x = ArtistLoudness,y = ArtistPopularity)) + geom_point()  + geom_smooth()
-
-
-training_data %>% ggplot(aes(x =  ArtistEnergy ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
-
-training_data %>% ggplot(aes(x =  ArtistTimeSignature   ,y = ArtistPopularity)) + geom_point()  + geom_smooth()
-
-
-
+library(GGally)
+library(cluster)
+library(VIM)
+library(fpc)
 library(leaps)
 
-#all subsets regression
-m <- regsubsets( ArtistPopularity ~ ., data = training_data)
-
-summary(m)
-
-par(mfrow = c(1,1))
-
-plot(m, scale = "Cp")
-
-plot(m, scale = "bic")
-
-plot(m, scale = "adjr2")
-
-
-#a selected best model by BIC
-m1 <- lm(ArtistPopularity ~ ArtistDanceability + ArtistAcousticness + ArtistValence,data=training_data)
-summary(m1)
-
-
-
-MyData2 = {training_data %>% 
-    group_by(AlbumPopularity) %>% 
-    summarize(AlbumDanceability = mean(TrackDanceability),
-              AlbumLoudness = mean(TrackLoudness),
-              AlbumSpeechiness = mean(TrackSpeechiness),
-              AlbumDuration = mean(TrackDuration),
-              AlbumNumber = mean(TrackNumber),	
-              AlbumEnergy = mean(TrackEnergy),	
-              AlbumKey = mean(TrackKey),	
-              AlbumMode = mean(TrackMode),	
-              AlbumAcousticness = mean(TrackAcousticness),	
-              AlbumInstrumentalness = mean(TrackInstrumentalness),	
-              AlbumLiveness = mean(TrackLiveness),
-              AlbumValence = mean(TrackValence),
-              AlbumTempo = mean(TrackTempo),	
-              AlbumTimeSignature = mean(TrackTimeSignature) )}
-
-
-ggpairs(MyData2)
-
-MyData2 %>% ggplot(aes(x =AlbumDanceability,y = AlbumPopularity)) + geom_point()  + geom_smooth()
-
-MyData2 %>% ggplot(aes(x = AlbumLoudness,y = AlbumPopularity)) + geom_point()  + geom_smooth()
-
-
-MyData2 %>% ggplot(aes(x =  AlbumEnergy ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
-
-MyData2 %>% ggplot(aes(x =  AlbumTimeSignature   ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
-
-
-
-
-#all subsets regression
-m <- regsubsets( AlbumPopularity ~ ., data = MyData2)
-
-summary(m)
-
-par(mfrow = c(1,1))
-
-plot(m, scale = "Cp")
-
-plot(m, scale = "bic")
-
-plot(m, scale = "adjr2")
-
-
-#a selected best model by BIC
-m1 <- lm(AlbumPopularity ~ AlbumDanceability + AlbumAcousticness + AlbumValence,data=MyData2)
-summary(m1)
-
-
 ```
+
+
+```{r code setup}
+spotify.clustering <- read_csv("inst/edited_spotify.csv")
+
+clean_data <- spotify.clustering %>%
+  mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
+  #Old-school grepl method
+  mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
+  #Tidyverse str_detect method
+  mutate(Artist = ifelse(Artist %>% 
+                           str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
+  mutate(Artist = ifelse(AlbumBestChartPosition %>% 
+                           str_detect("#N/A"), 0, Artist)) %>%
+  na.omit() %>%
+  mutate(id = row_number()) %>%
+  mutate(id = as.character(id))
+sapply(data, class)
+
+aggr(clean_data) # checks for missing data
+
+test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
+                                 (AlbumName == "Action!") |
+                                 (AlbumName == "Selling England By The Pound") |
+                                 (AlbumName == "Carpenters") | 
+                                 (AlbumName == "Ride On") |
+                                 (AlbumName == "Autoamerican") |
+                                 (AlbumName == "Selected Ambient Works 85-92") |    
+                                 (AlbumName == "Different Class") |
+                                 (AlbumName == "O") |
+                                 (AlbumName == "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") |
+                                 (AlbumName == "AM") |
+                                 (AlbumName == "An Awesome Wave")))
+
+training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") & 
+                                     (AlbumName != "Action!") &
+                                     (AlbumName != "Selling England By The Pound") &
+                                     (AlbumName != "Carpenters") & 
+                                     (AlbumName != "Ride On") &
+                                     (AlbumName != "Autoamerican") &
+                                     (AlbumName != "Selected Ambient Works 85-92") &    
+                                     (AlbumName != "Different Class") &
+                                     (AlbumName != "O") &
+                                     (AlbumName != "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") &
+                                     (AlbumName != "AM") &
+                                     (AlbumName != "An Awesome Wave")))
+
+training_data <- training_data[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo")]
+```
+
