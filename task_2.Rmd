@@ -1,21 +1,24 @@
 ---
-title: "Task_1_EDA"
-author: "Brownsey"
-date: "28/10/2019"
+title: "Clustering"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tibble)
+library(lubridate)
+library(GGally)
+library(cluster)
+
+spotify <- read_csv("edited_spotify.csv")
 ```
 
 ## Stephen's code
-Loading libraries and code
-```{r, message=FALSE}
-library(tidyverse)
-library(readxl)
-library(lubridate)
-library(GGally)
+
+```{r data clean, message=FALSE}
+
+clean_data <- spotify %>%
 library(class)
 data <- read_excel("inst/edited_spotify.xlsx") %>%
   mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
@@ -29,18 +32,51 @@ data <- read_excel("inst/edited_spotify.xlsx") %>%
   mutate(id = as.character(id)) %>%
   filter(TrackName != "Sandy's Holiday")
 sapply(data, class)
+
 ```
+
+
 Variable distributions
-```{r, message = FALSE}
+
+
+```{r clustering, message = FALSE}
+
 # Not sure why gather doesn't work, looks like it should as all attributes are numeric but anyway
-distributions <- data %>%
+distributions <- clean_data %>%
   gather(key = key, value = value) %>%
-  subset(key %in% colnames(data[15:27])) %>%
+  subset(key %in% colnames(clean_data[15:27])) %>%
   ggplot() +
   geom_density(aes(value)) +
   facet_wrap(~key, scales = "free") +
   theme_classic()
-distributions
+
+
+#print(distributions) commented out because it takes forever to run
+
+ggpairs_1 <- ggpairs(data = clean_data, columns = 15:27, title = "GGpairs")
+
+#print(ggpairs_1) see above
+
+#Puts each song in  a cluster based on ALL numeric discriptors
+cluster_1 <- clean_data %>%
+  select(colnames(clean_data[15:27]), -TrackMode) %>%
+  kmeans(50,100,1) # done some research and kmeans is apparently quite naive - working on
+                   # an implementation with pam (and pamk). Also need to work on how we
+                   # choose the number of clusters.
+clusters <- cluster_1$cluster %>%
+  enframe(name = "id") %>%
+  mutate(id = as.character(id))
+
+#Not sure why not merging think it should
+clean_data <- right_join(clean_data, clusters, by = "id")  %>%
+  rename_(cluster = "value")
+tibbled <- tibble(clean_data, cluster_1$cluster)
+```
+
+```{r cluster validation}
+
+clusplot(clean_data, clusters, color=TRUE, shade=TRUE,
+   labels=2, lines=0)
 
 #Useful but takes a minute or so to run so commenting out for now
 # ggpairs_1 <- ggpairs(data = data, columns = 15:27, title = "GGpairs")
@@ -53,8 +89,6 @@ cluster_1 <- data %>%
 clusters <- cluster_1$cluster %>%
   enframe(name = "id") %>%
   mutate(id = as.character(id)) 
-# %>%
-  # mutate(value = as.character(value))
 
 #Not sure why not merging think it should
 #data <- right_join(data, clusters, by = id)  %>%
@@ -64,7 +98,10 @@ clusters <- cluster_1$cluster %>%
 
 #tibbled <- tibble(data, cluster_1$cluster)
 
+```
 
+
+```{r getter_functions}
 get_knn <- function(){
   
 }
@@ -72,10 +109,10 @@ get_knn <- function(){
 get_row <- function(song_name){
   line_number <- data$TrackName %>%
     str_detect(song_name)
-  min(which(line_number == TRUE))
+    
+  return(min(which(line_number)))
 }
 
-#Struggling to get this to 
 get_cluster_rows <- function(cluster_number){
   clusters %>%
     filter(value == cluster_number) %>%
@@ -87,7 +124,6 @@ get_cluster_rows <- function(cluster_number){
 get_cluster <- function(row_number){
   cluster_1$cluster[row_number]
 }
-
 
 random_picker <- function(cluster_number){
 new_song_rn <- get_cluster_rows(cluster_number) %>%
