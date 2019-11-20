@@ -29,8 +29,8 @@ clean_data <- spotify.clustering %>%
   #Tidyverse str_detect method
   mutate(Artist = ifelse(Artist %>% 
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
-  mutate(Artist = ifelse(AlbumBestChartPosition %>% 
-                           str_detect("#N/A"), 0, Artist)) %>%
+  mutate(AlbumBestChartPosition = ifelse(AlbumBestChartPosition %>% 
+                           str_detect("#N/A"), 0, AlbumBestChartPosition)) %>%
   na.omit() %>%
   mutate(id = row_number()) %>%
   mutate(id = as.character(id))
@@ -64,7 +64,7 @@ training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") &
                                      (AlbumName != "AM") &
                                      (AlbumName != "An Awesome Wave")))
 
-training_data <- training_data[c("TrackDuration", "TrackDanceability",
+training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
                                  "TrackEnergy", "TrackKey", "TrackLoudness",
                                  "TrackSpeechiness", "TrackAcousticness",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
@@ -144,8 +144,24 @@ MyData2 %>% ggplot(aes(x =  AlbumEnergy ,y = AlbumPopularity)) + geom_point()  +
 MyData2 %>% ggplot(aes(x =  AlbumTimeSignature   ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
 ```
 
+A new popularity variable needs to be defined to take into account all the other popularity variables
+```{r newPop}
+normy <- function(x){
+  as.numeric(x)
+  quantile(x, c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), na.rm = TRUE)
+}
+normy(training_data$AlbumBestChartPosition)
+normy(training_data$AlbumWeeksNumberOne)
+normy(training_data$AlbumPopularity)
+normy(training_data$ArtistPopularity)
+#Gets the 20% percentile for example
+as.numeric(normy(training_data$ArtistNumFollowers)[3])
 
+training_data <- training_data %>%
+  mutate(album_weeks_n = if_else())
+  allData$CombinedAlbumPopularity <- with(allData,(AlbumWeeksOnChart + AlbumWeeksNumberOne + AlbumPopularity + AlbumBestChartAdj + ArtistNumFollowers)/(yearSinceRelease + 1)^2)
 
+```
 ```{r leaps}
 #all subsets regression
 m <- regsubsets( ArtistPopularity ~ ., data = training_data)
@@ -182,8 +198,6 @@ plot(m, scale = "adjr2")
 #a selected best model by BIC
 m1 <- lm(AlbumPopularity ~ AlbumDanceability + AlbumAcousticness + AlbumValence,data=MyData2)
 summary(m1)
-
-
 ```
 ## Specific Task 2 EDA
 Things I want to do:
@@ -252,9 +266,9 @@ print(genre_freq_plot)
 
 # associate tracks that have multiple genres with the most frequent genre (since these will be broader)
 
-training_data <- training_data %>% mutate(TrueCluster = (row_number()-row_number()))
+training_data_genre <- training_data %>% mutate(TrueCluster = (row_number()-row_number()))
 
-for(i in 1:length(training_data$ArtistID)) {
+for(i in 1:length(training_data_genre$ArtistID)) {
   if(str_detect(training_data$ArtistGenres[i], "folk")) {training_data$TrueCluster[i] <- 5}
   if(str_detect(training_data$ArtistGenres[i], "indie")) {training_data$TrueCluster[i] <- 4}
   if(str_detect(training_data$ArtistGenres[i], "hip")) {training_data$TrueCluster[i] <- 3}
@@ -263,7 +277,7 @@ for(i in 1:length(training_data$ArtistID)) {
   if(str_detect(training_data$ArtistGenres[i], "rock")) {training_data$TrueCluster[i] <- 1}
 }
 
-View(training_data)
+View(training_data_genre)
 ```
 
 ```{r clustering}
@@ -297,20 +311,20 @@ Variable distributions
 
 #print(distributions) commented out because it takes forever to run
 
-ggpairs_1 <- ggpairs(data = clean_data, columns = 15:27, title = "GGpairs")
+ggpairs_1 <- ggpairs(data = training_data_subsetted, columns = 15:27, title = "GGpairs")
 
 #print(ggpairs_1) see above
 
 #Puts each song in  a cluster based on ALL numeric discriptors
-cluster_1 <- clean_data %>%
-  select(colnames(clean_data[15:27]), -TrackMode) %>%
+cluster_1 <- training_data_subsetted %>%
+  select(colnames(training_data_subsetted[15:27]), -TrackMode) %>%
   kmeans(50,100,1)
 clusters <- cluster_1$cluster %>%
   enframe(name = "id") %>%
   mutate(id = as.character(id))
 
 #Not sure why not merging think it should
-clean_data <- right_join(clean_data, clusters, by = "id")  %>%
+clean_data <- right_join(training_data_subsetted, clusters, by = "id")  %>%
   rename_(cluster = "value")
 tibbled <- tibble(clean_data, cluster_1$cluster)
 ```
