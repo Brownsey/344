@@ -10,6 +10,8 @@ library(tibble)
 library(lubridate)
 library(GGally)
 library(cluster)
+library(class)
+library(caret)
 ```
 
 ## Task Implementation
@@ -74,18 +76,30 @@ training_data <- training_data[c("TrackDuration", "TrackDanceability",
 
 Defines the clustering of the training data
 ```{r clustering}
-cluster_1 <- data %>%
-  select(colnames(data[15:27]), -TrackMode) %>%
+cluster_1 <- training_data %>%
   kmeans(50,100,1)
 ```
 
 ```{r getter_functions}
-get_knn <- function(){
-  
+song_name <- sample_n(test_data, 1)
+#Function to get the nearest cluster for the *new* song
+get_knn_cluster <- function(song_name = song_name, k = 5){
+  as.character(knn(train = training_data %>% as.matrix(),
+      test = get_row_new(song_name) %>% as.matrix(),
+      cl = cluster_1$cluster %>% as.matrix(), k = k, prob = TRUE )[[1]])
 }
 
-get_row <- function(song_name){
-  line_number <- data$TrackName %>%
+
+#Had a little look - either need to use the caret package I think as that handles tibbles or somehow get the training_data e.t.c in the form of a matrix or dataframe but each time I try it has other class structures and not quite sure why lol
+train <- rbind(iris3[1:25,,1], iris3[1:25,,2], iris3[1:25,,3])
+test <- rbind(iris3[26,,1])
+cl <- factor(c(rep("2",25), rep("3",25), rep("4",25)))
+#In prinicple something like this is what we want:
+as.character(knn(train, test, cl, k = 3, prob=TRUE)[[1]])
+
+
+get_row_new <- function(song_name){
+  line_number <- test_data$TrackName %>%
     str_detect(song_name)
     
   return(min(which(line_number)))
