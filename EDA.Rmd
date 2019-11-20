@@ -31,9 +31,10 @@ clean_data <- spotify.clustering %>%
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
   mutate(AlbumBestChartPosition = ifelse(AlbumBestChartPosition %>% 
                            str_detect("#N/A"), 0, AlbumBestChartPosition)) %>%
+  mutate(AlbumBestChartPosition = as.numeric(AlbumBestChartPosition)) %>%
   na.omit() %>%
   mutate(id = row_number()) %>%
-  mutate(id = as.character(id))
+  mutate(id = as.character(id)) 
 sapply(data, class)
 
 aggr(clean_data) # checks for missing data
@@ -146,19 +147,40 @@ MyData2 %>% ggplot(aes(x =  AlbumTimeSignature   ,y = AlbumPopularity)) + geom_p
 
 A new popularity variable needs to be defined to take into account all the other popularity variables
 ```{r newPop}
+#Looking at implementing new variables for each popularity variable
+#Can then take this and normalise to give a score out of 100.
 normy <- function(x){
   as.numeric(x)
   quantile(x, c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), na.rm = TRUE)
 }
-normy(training_data$AlbumBestChartPosition)
-normy(training_data$AlbumWeeksNumberOne)
-normy(training_data$AlbumPopularity)
-normy(training_data$ArtistPopularity)
+abcp_normy <- normy(training_data$AlbumBestChartPosition)
+anf_normy <- normy(training_data$ArtistNumFollowers)
+awoc_normy <- normy(training_data$AlbumWeeksOnChart)
+awn1_normy <- normy(training_data$AlbumWeeksNumberOne)
+ap_normy <- normy(training_data$AlbumPopularity)
+
 #Gets the 20% percentile for example
-as.numeric(normy(training_data$ArtistNumFollowers)[3])
+as.numeric(abcp_normy[10])
 
 training_data <- training_data %>%
-  mutate(album_weeks_n = if_else())
+  mutate(album_weeks_n = 1)
+
+for(i in 1:10){
+  if(between(training_data$AlbumBestChartPosition, as.numeric(abcp_normy[i]), as.numeric(abcp_normy[i + 1]))){
+    training_data$album_weeks_n = i
+  }
+}
+
+
+
+
+training_data <- training_data %>%
+  mutate(album_weeks_n = if_else(training_data$AlbumBestChartPosition %in% c(normy(as.numeric(training_data$AlbumBestChartPosition))[1], 
+                normy(as.numeric(training_data$AlbumBestChartPosition))[2]), 1, 5
+         ))
+
+
+
   allData$CombinedAlbumPopularity <- with(allData,(AlbumWeeksOnChart + AlbumWeeksNumberOne + AlbumPopularity + AlbumBestChartAdj + ArtistNumFollowers)/(yearSinceRelease + 1)^2)
 
 ```
