@@ -160,37 +160,96 @@ anf_normy <- normy(training_data$ArtistNumFollowers)
 awoc_normy <- normy(training_data$AlbumWeeksOnChart)
 awn1_normy <- normy(training_data$AlbumWeeksNumberOne)
 ap_normy <- normy(training_data$AlbumPopularity)
-ap <- normy(training_data$ArtistPopularity)
+artp_normy <- normy(training_data$ArtistPopularity)
 
 #Gets the 20% percentile for example
-as.numeric(abcp_normy[10])
+as.numeric(abcp_normy[6])
 
 training_data <- training_data %>%
   mutate(album_weeks_n = if_else(AlbumBestChartPosition == 0, 1,
                          if_else(AlbumBestChartPosition == 1, 10,
                          if_else(AlbumBestChartPosition == 2, 9,
                          if_else(AlbumBestChartPosition == 3, 8,
-                         if_else(AlbumBestChartPosition > abcp_normy[5] && AlbumBestChartPosition < abcp_normy[6], 7,
-                         if_else(AlbumBestChartPosition > abcp_normy[6] && AlbumBestChartPosition < abcp_normy[7], 6,
-                         if_else(AlbumBestChartPosition > abcp_normy[7] && AlbumBestChartPosition < abcp_normy[8], 5,
-                         if_else(AlbumBestChartPosition > abcp_normy[8] && AlbumBestChartPosition < abcp_normy[9], 4,
-                         if_else(AlbumBestChartPosition > abcp_normy[9] && AlbumBestChartPosition < abcp_normy[10], 3,
-                         if_else(AlbumBestChartPosition > abcp_normy[10] && AlbumBestChartPosition < abcp_normy[11], 2, 0 )))))))))))
+                                 #Penality for not being top 3 by missing a number
+                         if_else(AlbumBestChartPosition > as.numeric(abcp_normy[6]) &&
+                                   AlbumBestChartPosition <= as.numeric(abcp_normy[7]), 6,
+                         if_else(AlbumBestChartPosition > as.numeric(abcp_normy[7]) &&
+                                   AlbumBestChartPosition <= as.numeric(abcp_normy[8]), 5,
+                         if_else(AlbumBestChartPosition > as.numeric(abcp_normy[8]) &&
+                                   AlbumBestChartPosition <= as.numeric(abcp_normy[9]), 4,
+                         if_else(AlbumBestChartPosition > as.numeric(abcp_normy[9]) &&
+                                   AlbumBestChartPosition <= as.numeric(abcp_normy[10]), 3,
+                         if_else(AlbumBestChartPosition > as.numeric(abcp_normy[10]) &&
+                                   AlbumBestChartPosition <= as.numeric(abcp_normy[11]), 2, 0 )
+                         ))))))))) %>% #... repeat for other variables
+  mutate(artist_follow_n = -1) %>%
+  mutate(album_pop_n = -1) %>%
+  mutate(artist_pop_n = -1) %>%
+  mutate(album_weeks_on_chart_n = -1) %>%
+  mutate(album_weeks_number_1n = -1)
+  
 
-#This is obviously wrong but not sure why...         
+#This is obviously wrong but not sure why... Looks like it should be working to me        
 training_data %>% 
   ggplot(aes(x = album_weeks_n)) + 
   geom_bar()         
-         
+
+#Functionalising it doesn't seem to work
+
+# updater <- function(new_column, old_column, normy){
+#   for(i in 1:10){
+#   for(j in 1:nrow(training_data)){
+#       if(training_data[,old_column][j] >= as.numeric(normy[i]) &&
+#          training_data[,old_column][j] < as.numeric(normy[i + 1])){
+#     training_data[,new_column][j] = i
+#   }
+#   }
+# }
+# }         
+# 
+# updater("artist_follow_n", "ArtistNumFollowers", anf_normy)
+#Create and update artist_num followers
 
 for(i in 1:10){
-  if(between(training_data$AlbumBestChartPosition, as.numeric(abcp_normy[i]), as.numeric(abcp_normy[i + 1]))){
-    training_data$album_weeks_n = i
+  for(j in 1:nrow(training_data)){
+      if(training_data$ArtistNumFollowers[j] >= as.numeric(anf_normy[i]) &&
+         training_data$ArtistNumFollowers[j] < as.numeric(anf_normy[i + 1])){
+    training_data$artist_follow_n[j] = i
+  }
+  }
+}
+#Create and update artist_popularity
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$ArtistPopularity[j] >= as.numeric(artp_normy[i]) &&
+         training_data$ArtistPopularity[j] < as.numeric(artp_normy[i + 1])){
+    training_data$artist_pop_n[j] = i
+  }
+  }
+}
+#Create and update album popularity
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumPopularity[j] >= as.numeric(ap_normy[i]) &&
+         training_data$AlbumPopularity[j] < as.numeric(ap_normy[i + 1])){
+    training_data$album_pop_n[j] = i
+  }
   }
 }
 
 
 
+bar_plot <- function(x){
+  training_data %>% 
+  ggplot(aes_string(x = x)) + 
+  geom_bar() +
+    theme_bw() +
+    scale_x_discrete(limits = c(0,2,4,6,8,10))
+}
+lapply(c("artist_follow_n", "artist_pop_n","album_pop_n"),bar_plot)
+
+
+as.numeric(anf_normy[1])
 
 training_data <- training_data %>%
   mutate(album_weeks_n = if_else(training_data$AlbumBestChartPosition %in% c(normy(as.numeric(training_data$AlbumBestChartPosition))[1], 
