@@ -65,7 +65,13 @@ training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") &
                                      (AlbumName != "AM") &
                                      (AlbumName != "An Awesome Wave")))
 
-training_data <- training_data[c("TrackDuration", "TrackDanceability",
+training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo")]
+
+test_data_subsetted <- test_data[c("TrackDuration", "TrackDanceability",
                                  "TrackEnergy", "TrackKey", "TrackLoudness",
                                  "TrackSpeechiness", "TrackAcousticness",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
@@ -76,33 +82,32 @@ training_data <- training_data[c("TrackDuration", "TrackDanceability",
 
 Defines the clustering of the training data
 ```{r clustering}
-cluster_1 <- training_data %>%
+cluster_1 <- training_data_subsetted %>%
   kmeans(50,100,1)
 ```
 
 ```{r getter_functions}
-song_name <- sample_n(test_data, 1)
-#Function to get the nearest cluster for the *new* song
-get_knn_cluster <- function(song_name = song_name, k = 5){
-  as.character(knn(train = training_data %>% as.matrix(),
-      test = get_row_new(song_name) %>% as.matrix(),
-      cl = cluster_1$cluster %>% as.matrix(), k = k, prob = TRUE )[[1]])
-}
-
-
-#Had a little look - either need to use the caret package I think as that handles tibbles or somehow get the training_data e.t.c in the form of a matrix or dataframe but each time I try it has other class structures and not quite sure why lol
-train <- rbind(iris3[1:25,,1], iris3[1:25,,2], iris3[1:25,,3])
-test <- rbind(iris3[26,,1])
-cl <- factor(c(rep("2",25), rep("3",25), rep("4",25)))
-#In prinicple something like this is what we want:
-as.character(knn(train, test, cl, k = 3, prob=TRUE)[[1]])
-
+song_name <- sample_n(test_data, 1) %>%
+  select(TrackName) %>%
+  as_vector()
 
 get_row_new <- function(song_name){
   line_number <- test_data$TrackName %>%
     str_detect(song_name)
     
   return(min(which(line_number)))
+}
+
+#Function to get the nearest cluster for the *new* song
+get_knn_cluster <- function(song_name = song_name, k = 5){
+  line_number <- get_row_new(song_name)
+  tdata <- test_data_subsetted %>%
+    slice(line_number)
+  tds <- training_data_subsetted %>% as.matrix()
+  cluster <- cluster_1$cluster %>% as.matrix()
+  as.character(knn(train = training_data_subsetted,
+      test = tdata,
+      cl = cluster, k = k, prob = TRUE )[[1]])
 }
 
 get_cluster_rows <- function(cluster_number){
