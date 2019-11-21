@@ -182,11 +182,11 @@ training_data <- training_data %>%
                          if_else(AlbumBestChartPosition > as.numeric(abcp_normy[10]) &&
                                    AlbumBestChartPosition <= as.numeric(abcp_normy[11]), 2, 0 )
                          ))))))))) %>% #... repeat for other variables
-  mutate(artist_follow_n = -1) %>%
-  mutate(album_pop_n = -1) %>%
-  mutate(artist_pop_n = -1) %>%
-  mutate(album_weeks_on_chart_n = -1) %>%
-  mutate(album_weeks_number_1n = -1)
+  mutate(artist_follow_n = 0) %>%
+  mutate(album_pop_n = 0) %>%
+  mutate(artist_pop_n = 0) %>%
+  mutate(album_weeks_on_chart_n = 0) %>%
+  mutate(album_weeks_number_1n = 0)
   
 
 #This is obviously wrong but not sure why... Looks like it should be working to me        
