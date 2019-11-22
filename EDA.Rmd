@@ -175,7 +175,8 @@ training_data <- training_data %>%
   mutate(album_pop_n = 0) %>%
   mutate(artist_pop_n = 0) %>%
   mutate(album_weeks_on_chart_n = if_else(AlbumWeeksOnChart == 0, 1, 0)) %>%
-  mutate(album_weeks_number_1n = if_else(AlbumWeeksNumberOne == 0, 1, 0))
+  mutate(album_weeks_number_1n = if_else(AlbumWeeksNumberOne == 0, 1, 0)) %>%
+  mutate(popularity = -1)
 
 # training_data <- training_data %>%
 #   mutate(album_bcp = 0) %>%
@@ -217,10 +218,6 @@ for(i in 6:10){
 }
 
 #This is obviously wrong but not sure why... Looks like it should be working to me        
-training_data %>% 
-  ggplot(aes(x = album_bcp)) + 
-  geom_bar()         
-
 #Updating artist_followers, need to sort it for end case, last one needs to be <= not <0
 # Can probably just mutate into it tbh at the end to fix all last cases.
 for(i in 1:10){
@@ -249,7 +246,12 @@ for(i in 1:10){
   }
   }
 }
-
+#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
+training_data_pop <- training_data %>%
+  mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
+                         25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
+                         10 * training_data$album_weeks_on_chart_n +
+                         5 * training_data$album_weeks_number_1n)/10))
 
 
 bar_plot <- function(x){
@@ -259,24 +261,12 @@ bar_plot <- function(x){
     theme_bw() +
     scale_x_discrete(limits = c(0,2,4,6,8,10))
 }
-lapply(c("artist_follow_n", "artist_pop_n","album_pop_n","album_bcp", "album_weeks_on_chart_n", "album_weeks_number_1n"),bar_plot)
-
-
-as.numeric(anf_normy[1])
-
-training_data <- training_data %>%
-  mutate(album_weeks_n = if_else(training_data$AlbumBestChartPosition %in% c(normy(as.numeric(training_data$AlbumBestChartPosition))[1], 
-                normy(as.numeric(training_data$AlbumBestChartPosition))[2]), 1, 5
-         ))
-
-
-
-  allData$CombinedAlbumPopularity <- with(allData,(AlbumWeeksOnChart + AlbumWeeksNumberOne + AlbumPopularity + AlbumBestChartAdj + ArtistNumFollowers)/(yearSinceRelease + 1)^2)
-
+lapply(c("artist_follow_n", "artist_pop_n","album_pop_n","album_bcp",
+         "album_weeks_on_chart_n", "album_weeks_number_1n"), bar_plot)
 ```
 ```{r leaps}
 #all subsets regression
-m <- regsubsets( ArtistPopularity ~ ., data = training_data)
+m <- regsubsets(ArtistPopularity ~ ., data = training_data)
 
 summary(m)
 
