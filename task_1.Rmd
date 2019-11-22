@@ -71,3 +71,7 @@ training_data <- training_data[c("TrackDuration", "TrackDanceability",
                                  "TrackTempo")]
 ```
 
+```{r attemptiongfunctionalisation}
+
+
+```

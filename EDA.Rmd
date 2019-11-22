@@ -266,11 +266,14 @@ training_data_pop <- training_data %>%
   mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
                          25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
                          10 * training_data$album_weeks_on_chart_n +
-                         5 * training_data$album_weeks_number_1n)/10))
-
+                         5 * training_data$album_weeks_number_1n)/10)) %>%
+  #Correcting for the max term which is not included in the if statement
+  mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
+  mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
+  mutate(album_pop_n = if_else(album_pop_n == 0, 10, album_pop_n))
 
 bar_plot <- function(x){
-  training_data %>% 
+  training_data_pop %>% 
   ggplot(aes_string(x = x)) + 
   geom_bar() +
     theme_bw() +
@@ -279,6 +282,8 @@ bar_plot <- function(x){
 lapply(c("artist_follow_n", "artist_pop_n","album_pop_n","album_bcp",
          "album_weeks_on_chart_n", "album_weeks_number_1n"), bar_plot)
 ```
+
+
 ```{r leaps}
 #all subsets regression
 m <- regsubsets(ArtistPopularity ~ ., data = training_data)
