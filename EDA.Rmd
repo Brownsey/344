@@ -247,6 +247,7 @@ for(i in 1:10){
   }
 }
 #Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
+#Should probably add some sort of verification to the numbers for now they are arbitrary?
 training_data_pop <- training_data %>%
   mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
                          25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
