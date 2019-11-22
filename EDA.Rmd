@@ -15,7 +15,8 @@ library(cluster)
 library(VIM)
 library(fpc)
 library(leaps)
-
+library(ISLR)
+library(glmnet)
 ```
 
 Firstly, we'll setup the import the dataset and split it into training and test data.
@@ -161,6 +162,7 @@ for(i in 1:11){
 
 A new popularity variable needs to be defined to take into account all the other popularity variables
 ```{r newPop, warnings = FALSE}
+#Future maybe not implement due to time but could functionalise this and then use k fold cross validation but would take a LONG time to run, (hours).
 #Looking at implementing new variables for each popularity variable
 #Can then take this and normalise to give a score out of 100.
 #To start with the whole training dataset will be used

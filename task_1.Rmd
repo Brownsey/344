@@ -15,7 +15,8 @@ library(cluster)
 library(VIM)
 library(fpc)
 library(leaps)
-
+library(ISLR)
+library(glmnet)
 ```
 
 
@@ -70,8 +71,20 @@ training_data <- training_data[c("TrackDuration", "TrackDanceability",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
                                  "TrackTempo")]
 ```
+Looking at ridge regression...
+```{r stephenmodels}
+#Get training_data_pop from EDA file
+model_data <- training_data_pop[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo", "popularity")]
 
-```{r attemptiongfunctionalisation}
+x <- model.matrix(popularity ~ ., model_data )
+y <- model_data %>%
+  select(popularity) %>% 
+  as.numeric()
 
-
+ridge_mod = glmnet(x, y, alpha = 0
+                   )
 ```
