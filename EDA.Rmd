@@ -144,6 +144,20 @@ MyData2 %>% ggplot(aes(x =  AlbumEnergy ,y = AlbumPopularity)) + geom_point()  +
 
 MyData2 %>% ggplot(aes(x =  AlbumTimeSignature   ,y = AlbumPopularity)) + geom_point()  + geom_smooth()
 ```
+```{r}
+correlations <- data.frame(matrix(0, nrow = 0, ncol = 0))
+
+for(i in 1:11){
+  for(j in 1:11){
+  correlations[i,j] <- round(cor(training_data_subsetted[i], training_data_subsetted[j]), 2)
+  }
+}
+correlations
+for(i in 1:11){
+ names(correlations)[i] <- colnames(training_data_subsetted[i])
+}
+
+```
 
 A new popularity variable needs to be defined to take into account all the other popularity variables
 ```{r newPop, warnings = FALSE}
