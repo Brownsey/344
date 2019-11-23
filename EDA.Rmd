@@ -17,6 +17,7 @@ library(fpc)
 library(leaps)
 library(ISLR)
 library(glmnet)
+library(factoextra)
 ```
 
 Firstly, we'll setup the import the dataset and split it into training and test data.
@@ -286,6 +287,18 @@ lapply(c("artist_follow_n", "artist_pop_n","album_pop_n","album_bcp",
 ```
 
 
+```{r factoextra}
+model_data <- training_data_pop[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo", "popularity")] 
+pam_clust <- fviz_nbclust(model_data , FUNcluster = cluster::pam)
+kmeans_clust <- fviz_nbclust(model_data , FUNcluster = kmeans)
+clara_clust <- fviz_nbclust(model_data , FUNcluster = cluster::clara)
+```
+
+
 ```{r leaps}
 #all subsets regression
 m <- regsubsets(ArtistPopularity ~ ., data = training_data)
@@ -452,4 +465,7 @@ clean_data <- right_join(training_data_subsetted, clusters, by = "id")  %>%
   rename_(cluster = "value")
 tibbled <- tibble(clean_data, cluster_1$cluster)
 ```
+
+
+
 

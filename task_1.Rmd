@@ -83,7 +83,7 @@ model_data <- training_data_pop[c("TrackDuration", "TrackDanceability",
                                  "TrackEnergy", "TrackKey", "TrackLoudness",
                                  "TrackSpeechiness", "TrackAcousticness",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
-                                 "TrackTempo", "popularity")] %>%
+                                 "TrackTempo", "popularity")] 
   
 
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
