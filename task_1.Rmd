@@ -75,7 +75,8 @@ Looking at ridge regression...
 ```{r stephenmodels}
 #Get training_data_pop from EDA file
 #Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
-
+training_data_pop %>%
+  group_by(Artist, AlbumName)
 
 
 model_data <- training_data_pop[c("TrackDuration", "TrackDanceability",
@@ -83,7 +84,7 @@ model_data <- training_data_pop[c("TrackDuration", "TrackDanceability",
                                  "TrackSpeechiness", "TrackAcousticness",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
                                  "TrackTempo", "popularity")] %>%
-  as_tibble()
+  
 
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
 #Looking at the models with the whole dataset
@@ -140,6 +141,8 @@ output %>%
   rename(best_lambda = X1, MSE = X2)
 
 #Takes about an hour to run approximately
+#Results are more or less identical to those of the 3minute version
+#So will tend to use that one for time purposes
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
 for(i in 1:nrow(model_data)){
   train = model_data[-i,]
