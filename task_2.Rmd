@@ -32,6 +32,7 @@ clean_data <- spotify.clustering %>%
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
   mutate(AlbumBestChartPosition = ifelse(AlbumBestChartPosition %>% 
                            str_detect("#N/A"), 0, AlbumBestChartPosition)) %>%
+  mutate(AlbumBestChartPosition= as.numeric(AlbumBestChartPosition)) %>%
   na.omit() %>%
   mutate(id = row_number()) %>%
   mutate(id = as.character(id))

@@ -32,6 +32,7 @@ clean_data <- spotify.clustering %>%
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
   mutate(AlbumBestChartPosition = ifelse(AlbumBestChartPosition %>% 
                            str_detect("#N/A"), 0, AlbumBestChartPosition)) %>%
+    mutate(AlbumBestChartPosition= as.numeric(AlbumBestChartPosition)) %>%
   na.omit() %>%
   mutate(id = row_number()) %>%
   mutate(id = as.character(id))
@@ -194,6 +195,7 @@ spotify_summarise <- function(x){
             track_tempo_mean = mean(TrackTempo),
             track_tempo_IQR = IQR(TrackTempo),
             popularity = mean(popularity)
+            
   )
 }
 ```
@@ -205,9 +207,9 @@ training_data_pop_1 <- training_data %>%
   mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
                          25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
                          10 * training_data$album_weeks_on_chart_n +
-                         5 * training_data$album_weeks_number_1n)/
-                         10 * ((100 + 3 * training_data$years_since_release^2)/
-                         (100 + training_data$years_since_release)))) %>%
+                         5 * training_data$album_weeks_number_1n)/(
+                         10 * ((100 + 3 * training_data$years_since_release)/
+                         (100 + training_data$years_since_release))))) %>%
   #Correcting for the max term which is not included in the if statement
   mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
   mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
@@ -222,11 +224,12 @@ Second Popularity Combination
 ```{r}
 #Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
 #Should probably add some sort of verification to the numbers for now they are arbitrary?
+value <- 100/3
 training_data_pop_2 <- training_data %>%
-  mutate(popularity = ((100/3) * training_data$album_pop_n + (100/3) * training_data$artist_pop_n +
-                         (100/3) * training_data$artist_follow_n/
-                         10 * ((100 + 3 * training_data$years_since_release^2)/
-                         (100 + training_data$years_since_release)))) %>%
+  mutate(popularity = ((value * training_data$album_pop_n + value * training_data$artist_pop_n +
+                         value * training_data$artist_follow_n)/(
+                         10 * ((100 + 3 * training_data$years_since_release)/
+                         (100 + training_data$years_since_release))))) %>%
   #Correcting for the max term which is not included in the if statement
   mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
   mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
@@ -245,9 +248,9 @@ training_data_pop_3 <- training_data %>%
   mutate(popularity = ((value * training_data$album_pop_n + value * training_data$artist_pop_n +
                          value * training_data$artist_follow_n + value * training_data$album_bcp +
                          value * training_data$album_weeks_on_chart_n +
-                         value * training_data$album_weeks_number_1n)/
-                         10 * ((100 + 3 * training_data$years_since_release^2)/
-                         (100 + training_data$years_since_release)))) %>%
+                         value * training_data$album_weeks_number_1n)/(
+                         10 * ((100 + 3 * training_data$years_since_release)/
+                         (100 + training_data$years_since_release))))) %>%
   #Correcting for the max term which is not included in the if statement
   mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
   mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
@@ -262,24 +265,16 @@ Looking at ridge regression...
 ```{r stephenmodels}
 #Get training_data_pop from EDA file
 #Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
-training_data_pop %>%
-  group_by(Artist, AlbumName)
-
-
-model_data <- training_data_pop[c("TrackDuration", "TrackDanceability",
-                                 "TrackEnergy", "TrackKey", "TrackLoudness",
-                                 "TrackSpeechiness", "TrackAcousticness",
-                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
-                                 "TrackTempo", "popularity")] 
-  
-
+model_data <- data_1
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
 #Looking at the models with the whole dataset
 x <- model.matrix(popularity ~ ., model_data )
 y <- model_data %>%
+  ungroup() %>%
   select(popularity) %>%
   unlist() %>%
-  as.numeric()
+  as.numeric() %>%
+  na.omit()
 
 grid = 10^seq(10, -2, length = 100)
 ridge_mod = glmnet(x, y, alpha = 0)
@@ -292,40 +287,40 @@ plot(ridge_mod)    # Draw plot of coefficients
 #Now going to split the
 #creating training and test data
 
-##Takes about 3minutes to run:
-output <- data.frame(matrix(0, nrow = 0, ncol = 2))
-for(i in 1:100){
-  train = model_data %>%
-  sample_frac(0.8)
-
-test = model_data %>%
-  setdiff(train)
-
-x_train = model.matrix(popularity ~ ., train)
-x_test = model.matrix(popularity ~ ., test)
-
-y_train = train %>%
-  select(popularity) %>%
-  unlist() %>%
-  as.numeric()
-
-y_test = test %>%
-  select(popularity) %>%
-  unlist() %>%
-  as.numeric()
-
-
-cv.out = cv.glmnet(x_train, y_train, alpha = 0) # Fit ridge regression model on training data
-bestlam = cv.out$lambda.min  # Select lamda that minimizes training MSE
-bestlam
-ridge_mod = glmnet(x_train, y_train, alpha= 0, lambda = bestlam, thresh = 1e-12)
-ridge_pred = predict(ridge_mod, s = bestlam, newx = x_test) # Use best lambda to predict test data
-m <- mean((ridge_pred - y_test)^2) # Calculate test MSE
-output[i,1] <- bestlam
-output[i,2] <- m
-}
-output %>%
-  rename(best_lambda = X1, MSE = X2)
+# ##Takes about 3minutes to run:
+# output <- data.frame(matrix(0, nrow = 0, ncol = 2))
+# for(i in 1:100){
+#   train = model_data %>%
+#   sample_frac(0.8)
+# 
+# test = model_data %>%
+#   setdiff(train)
+# 
+# x_train = model.matrix(popularity ~ ., train)
+# x_test = model.matrix(popularity ~ ., test)
+# 
+# y_train = train %>%
+#   select(popularity) %>%
+#   unlist() %>%
+#   as.numeric()
+# 
+# y_test = test %>%
+#   select(popularity) %>%
+#   unlist() %>%
+#   as.numeric()
+# 
+# 
+# cv.out = cv.glmnet(x_train, y_train, alpha = 0) # Fit ridge regression model on training data
+# bestlam = cv.out$lambda.min  # Select lamda that minimizes training MSE
+# bestlam
+# ridge_mod = glmnet(x_train, y_train, alpha= 0, lambda = bestlam, thresh = 1e-12)
+# ridge_pred = predict(ridge_mod, s = bestlam, newx = x_test) # Use best lambda to predict test data
+# m <- mean((ridge_pred - y_test)^2) # Calculate test MSE
+# output[i,1] <- bestlam
+# output[i,2] <- m
+# }
+# output %>%
+#   rename(best_lambda = X1, MSE = X2)
 
 #Takes about an hour to run approximately
 #Results are more or less identical to those of the 3minute version
