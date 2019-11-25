@@ -217,7 +217,9 @@ training_data_pop_1 <- training_data %>%
 
 
 data_1 <- training_data_pop_1 %>%
-  spotify_summarise
+  spotify_summarise %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate)
 ```
 
 Second Popularity Combination
@@ -237,7 +239,9 @@ training_data_pop_2 <- training_data %>%
 
 
 data_2 <- training_data_pop_2 %>%
-  spotify_summarise
+  spotify_summarise %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate)
 ```
 Third Popularity Combination
 ```{r}
@@ -258,19 +262,20 @@ training_data_pop_3 <- training_data %>%
 
 
 data_3 <- training_data_pop_3 %>%
-  spotify_summarise
+  spotify_summarise %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate)
 ```
 
 Looking at ridge regression...
 ```{r stephenmodels}
 #Get training_data_pop from EDA file
 #Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
-model_data <- data_1
+model_data <- data_1 
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
 #Looking at the models with the whole dataset
 x <- model.matrix(popularity ~ ., model_data )
 y <- model_data %>%
-  ungroup() %>%
   select(popularity) %>%
   unlist() %>%
   as.numeric() %>%
