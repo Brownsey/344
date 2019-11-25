@@ -211,6 +211,8 @@ First Popularity Combination
 ```{r}
 #Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
 #Should probably add some sort of verification to the numbers for now they are arbitrary?
+#Tried 2 and 5 for the multiplcation parameter in the years since release scaling 
+#But these both resulted in higher MSE
 training_data_pop_1 <- training_data %>%
   mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
                          25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
@@ -338,8 +340,9 @@ ridge_data1 <- ridge_reg(data_1)
 #MSE of entire training dataset
 x_data1 <- model.matrix(popularity ~ ., data_1)
 y_data1 <- define_y(data_1)
-ridge_pred_2 <- predict(ridge_data1, newx = x_data1)
-mse_model1 <- mean((ridge_pred_2 - y_data1)^2)
+ridge_pred_1 <- predict(ridge_data1, newx = x_data1)
+mse_model1 <- mean((ridge_pred_1 - y_data1)^2)
+ridge_med_1 <- median((ridge_pred_1 - y_data1))
 #Extract the coefficients of each variable in the model
 ridge_data1$beta
 
@@ -350,6 +353,7 @@ x_data2 <- model.matrix(popularity ~ ., data_2)
 y_data2 <- define_y(data_2)
 ridge_pred_2 <- predict(ridge_data2, newx = x_data2)
 mse_model2 <- mean((ridge_pred_2 - y_data2)^2)
+ridge_med_2 <- median((ridge_pred_2 - y_data2))
 #Extract the coefficients of each variable in the model
 ridge_data2$beta
 
@@ -360,6 +364,7 @@ x_data3 <- model.matrix(popularity ~ ., data_3)
 y_data3 <- define_y(data_3)
 ridge_pred_3 <- predict(ridge_data3, newx = x_data3)
 mse_model_3 <- mean((ridge_pred_3 - y_data3)^2)
+ridge_med_3 <- median((ridge_pred_3 - y_data3))
 #Extract the coefficients of each variable in the model
 ridge_data1$beta
 ```
@@ -426,6 +431,7 @@ lx_data1 <- model.matrix(popularity ~ ., data_1)
 ly_data1 <- define_y(data_1)
 lasso_pred_1 <- predict(lasso_data1, newx = lx_data1)
 lmse_model1 <- mean((lasso_pred_1 - ly_data1)^2)
+lasso_med_1 <- median((lasso_pred_1 - ly_data1))
 #Extract the coefficients of each variable in the model
 lasso_data1$beta
 
@@ -434,6 +440,7 @@ lx_data2 <- model.matrix(popularity ~ ., data_2)
 ly_data2 <- define_y(data_2)
 lasso_pred_2 <- predict(lasso_data1, newx = lx_data2)
 lmse_model2 <- mean((lasso_pred_2 - ly_data2)^2)
+lass0_med_2 <- median((lasso_pred_2 - ly_data2))
 #Extract the coefficients of each variable in the model
 lasso_data2$beta
 
@@ -442,6 +449,7 @@ lx_data3 <- model.matrix(popularity ~ ., data_3)
 ly_data3 <- define_y(data_3)
 lasso_pred_3 <- predict(lasso_data3, newx = lx_data3)
 lmse_model3 <- mean((lasso_pred_3 - ly_data3)^2)
+lasso_med_3 <- median((lasso_pred_3 - ly_data3))
 #Extract the coefficients of each variable in the model
 lasso_data3$beta
 ```
