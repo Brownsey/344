@@ -65,12 +65,144 @@ training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") &
                                      (AlbumName != "AM") &
                                      (AlbumName != "An Awesome Wave")))
 
-training_data <- training_data[c("TrackDuration", "TrackDanceability",
+training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
                                  "TrackEnergy", "TrackKey", "TrackLoudness",
                                  "TrackSpeechiness", "TrackAcousticness",
                                  "TrackInstrumentalness", "TrackLiveness", "TrackValence",
                                  "TrackTempo")]
 ```
+
+
+A new popularity variable needs to be defined to take into account all the other popularity variables
+```{r newPop, warnings = FALSE}
+#Future maybe not implement due to time but could functionalise this and then use k fold cross validation but would take a LONG time to run, (hours).
+#Looking at implementing new variables for each popularity variable
+#Can then take this and normalise to give a score out of 100.
+#To start with the whole training dataset will be used
+normy <- function(x){
+  as.numeric(x)
+  quantile(x, c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), na.rm = TRUE)
+}
+#Assumption: NA means it didn't reach the charts, lower the position the better
+abcp_normy <- normy(training_data$AlbumBestChartPosition)
+anf_normy <- normy(training_data$ArtistNumFollowers)
+awoc_normy <- normy(training_data$AlbumWeeksOnChart)
+awn1_normy <- normy(training_data$AlbumWeeksNumberOne)
+ap_normy <- normy(training_data$AlbumPopularity)
+artp_normy <- normy(training_data$ArtistPopularity)
+
+#Gets the 20% percentile for example
+as.numeric(abcp_normy[6])
+
+training_data <- training_data %>%
+  mutate(album_bcp = if_else(AlbumBestChartPosition == 0, 1,
+                         if_else(AlbumBestChartPosition == 1, 10,
+                         if_else(AlbumBestChartPosition == 2, 9,
+                         if_else(AlbumBestChartPosition == 3, 8,
+                           0 ))))) %>% #... repeat for other variables
+  mutate(artist_follow_n = 0) %>%
+  mutate(album_pop_n = 0) %>%
+  mutate(artist_pop_n = 0) %>%
+  mutate(album_weeks_on_chart_n = if_else(AlbumWeeksOnChart == 0, 1, 0)) %>%
+  mutate(album_weeks_number_1n = if_else(AlbumWeeksNumberOne == 0, 1, 0)) %>%
+  mutate(popularity = -1) %>%
+  mutate(AlbumReleaseDate = as.numeric(format(AlbumReleaseDate, "%y"))) 
+                                         
+
+
+# training_data <- training_data %>%
+#   mutate(album_bcp = 0) %>%
+#   mutate(artist_follow_n = 0) %>%
+#   mutate(album_pop_n = 0) %>%
+#   mutate(artist_pop_n = 0) %>%
+#   mutate(album_weeks_on_chart_n = 0) %>%
+#   mutate(album_weeks_number_1n = 0)
+
+#album weeks number 1, this is fine as we are going > 0 and =< 1
+for(i in 8:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumWeeksNumberOne[j] > as.numeric(awn1_normy[i]) &&
+         training_data$AlbumWeeksNumberOne[j] <= as.numeric(awn1_normy[i + 1])){
+    training_data$album_weeks_number_1n[j] = i
+  }
+  }
+}
+
+for(i in 2:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumWeeksOnChart[j] > as.numeric(awoc_normy[i]) &&
+         training_data$AlbumWeeksOnChart[j] <= as.numeric(awoc_normy[i + 1])){
+    training_data$album_weeks_on_chart_n[j] = i
+  }
+  }
+}
+
+#album weeks on chart
+
+#albumchartposition
+for(i in 6:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumBestChartPosition[j] > as.numeric(abcp_normy[i]) &&
+         training_data$AlbumBestChartPosition[j] <= as.numeric(abcp_normy[i + 1])){
+    training_data$album_bcp[j] = (12-i)
+  }
+  }
+}
+
+#This is obviously wrong but not sure why... Looks like it should be working to me        
+#Updating artist_followers, need to sort it for end case, last one needs to be <= not <0
+# Can probably just mutate into it tbh at the end to fix all last cases.
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$ArtistNumFollowers[j] >= as.numeric(anf_normy[i]) &&
+         training_data$ArtistNumFollowers[j] < as.numeric(anf_normy[i + 1])){
+    training_data$artist_follow_n[j] = i
+  }
+  }
+}
+#Create and update artist_popularity
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$ArtistPopularity[j] >= as.numeric(artp_normy[i]) &&
+         training_data$ArtistPopularity[j] < as.numeric(artp_normy[i + 1])){
+    training_data$artist_pop_n[j] = i
+  }
+  }
+}
+#Create and update album popularity
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumPopularity[j] >= as.numeric(ap_normy[i]) &&
+         training_data$AlbumPopularity[j] < as.numeric(ap_normy[i + 1])){
+    training_data$album_pop_n[j] = i
+  }
+  }
+}
+#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
+#Should probably add some sort of verification to the numbers for now they are arbitrary?
+training_data_pop <- training_data %>%
+  mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
+                         25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
+                         10 * training_data$album_weeks_on_chart_n +
+                         5 * training_data$album_weeks_number_1n)/10)) %>%
+  #Correcting for the max term which is not included in the if statement
+  mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
+  mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
+  mutate(album_pop_n = if_else(album_pop_n == 0, 10, album_pop_n))
+
+bar_plot <- function(x){
+  training_data_pop %>% 
+  ggplot(aes_string(x = x)) + 
+  geom_bar() +
+    theme_bw() +
+    scale_x_discrete(limits = c(0,2,4,6,8,10))
+}
+lapply(c("artist_follow_n", "artist_pop_n","album_pop_n","album_bcp",
+         "album_weeks_on_chart_n", "album_weeks_number_1n"), bar_plot)
+```
+
+
+
 Looking at ridge regression...
 ```{r stephenmodels}
 #Get training_data_pop from EDA file
