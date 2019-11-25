@@ -106,7 +106,9 @@ training_data <- training_data %>%
   mutate(album_weeks_on_chart_n = if_else(AlbumWeeksOnChart == 0, 1, 0)) %>%
   mutate(album_weeks_number_1n = if_else(AlbumWeeksNumberOne == 0, 1, 0)) %>%
   mutate(popularity = -1) %>%
-  mutate(AlbumReleaseDate = as.numeric(format(AlbumReleaseDate, "%y"))) 
+  mutate(AlbumReleaseDate = as.numeric(format(AlbumReleaseDate, "%y"))) %>%
+  mutate(years_since_release = if_else(between(AlbumReleaseDate, 40, 99), (19 + (100 - AlbumReleaseDate)),
+                                         (19 - AlbumReleaseDate)))
                                          
 
 
