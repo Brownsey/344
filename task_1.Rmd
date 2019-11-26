@@ -17,6 +17,8 @@ library(fpc)
 library(leaps)
 library(ISLR)
 library(glmnet)
+library(ggvis)
+set.seed(666)
 ```
 
 
@@ -277,9 +279,190 @@ data_3 <- training_data_pop_3 %>%
   select(-AlbumName, -Artist, -AlbumReleaseDate)
 ```
 
+Looking at the the three datasets using best subset regression:
+Dataset 1:
+```{r}
+#all subsets regression
+
+
+m <- regsubsets(popularity ~ ., data = data_1)
+
+summary(m)
+
+#measures
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#check Adjusted R2
+rsq <- as.data.frame(summary(m)$adjr2)
+names(rsq) <- "Adjusted-R2"
+rsq %>% 
+        ggvis(x=~ c(1:nrow(rsq)), y=~`Adjusted-R2` ) %>%
+        layer_points(fill = ~`Adjusted-R2`) %>%
+        add_axis("y", title = "Adjusted-R2`") %>% 
+        add_axis("x", title = "Number of variables")
+
+#the final Adjusted R2 is very high
+
+reg.summary <- summary(m)
+
+
+#compare RSS, Cp, bic, adjr2
+par(mfrow=c(2,2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",type="l")
+plot(reg.summary$adjr2 ,xlab="Number of Variables ", ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(which.max(reg.summary$adjr2),reg.summary$adjr2[which.max(reg.summary$adjr2)], col="red",cex=2,pch=20)
+plot(reg.summary$cp ,xlab="Number of Variables ",ylab="Cp", type='l')
+which.min(reg.summary$cp )
+points(which.min(reg.summary$cp ),reg.summary$cp [which.min(reg.summary$cp )],col="red",cex=2,pch=20)
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type='l')
+which.min(reg.summary$bic )
+points(which.min(reg.summary$bic ),reg.summary$bic [which.min(reg.summary$bic )],col="red",cex=2,pch=20)
+par(mfrow=c(1,1))
+
+
+coef(m, 8)
+
+
+#a selected best model by adjr2
+m1 <- lm( popularity ~  track_loudness_mean  + track_speechiness_mean+ track_speechiness_IQR+ track_acousticness_mean + track_acousticness_IQR + track_valence_mean +      track_valence_IQR  + track_tempo_mean  ,data= data_1)
+summary(m1)
+
+#predictions on testing data
+preds <- predict(m1, newdata = data_1 )
+mse_bs1 <- mean((preds - data_1$popularity)^2)
+absolute_bs1 <- sqrt( mean((preds - data_1$popularity)^2) )
+```
+Dataset 2:
+```{r}
+#all subsets regression
+
+
+m <- regsubsets(popularity ~ ., data = data_2)
+
+summary(m)
+
+#measures
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#check Adjusted R2
+rsq <- as.data.frame(summary(m)$adjr2)
+names(rsq) <- "Adjusted-R2"
+rsq %>% 
+        ggvis(x=~ c(1:nrow(rsq)), y=~`Adjusted-R2` ) %>%
+        layer_points(fill = ~`Adjusted-R2`) %>%
+        add_axis("y", title = "Adjusted-R2`") %>% 
+        add_axis("x", title = "Number of variables")
+
+#the final Adjusted R2 is very high
+
+reg.summary <- summary(m)
+
+
+#compare RSS, Cp, bic, adjr2
+par(mfrow=c(2,2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",type="l")
+plot(reg.summary$adjr2 ,xlab="Number of Variables ", ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(which.max(reg.summary$adjr2),reg.summary$adjr2[which.max(reg.summary$adjr2)], col="red",cex=2,pch=20)
+plot(reg.summary$cp ,xlab="Number of Variables ",ylab="Cp", type='l')
+which.min(reg.summary$cp )
+points(which.min(reg.summary$cp ),reg.summary$cp [which.min(reg.summary$cp )],col="red",cex=2,pch=20)
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type='l')
+which.min(reg.summary$bic )
+points(which.min(reg.summary$bic ),reg.summary$bic [which.min(reg.summary$bic )],col="red",cex=2,pch=20)
+par(mfrow=c(1,1))
+
+
+coef(m, 8)
+
+
+#a selected best model by adjr2
+m1 <- lm( popularity ~  track_duration_IQR + track_danceability_mean + track_loudness_mean + track_speechiness_mean +  track_speechiness_IQR+ track_acousticness_IQR  +    track_valence_mean  +      track_tempo_mean ,data= data_2)
+summary(m1)
+
+#predictions on testing data
+preds <- predict(m1, newdata = data_2)
+
+absolute_bs2 <- sqrt( mean((preds - data_2$popularity)^2) )
+mse_bs2 <- mean((preds - data_2$popularity)^2) 
+```
+Third Dataset:
+```{r}
+m <- regsubsets(popularity ~ ., data = data_3)
+
+summary(m)
+
+#measures
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#check Adjusted R2
+rsq <- as.data.frame(summary(m)$adjr2)
+names(rsq) <- "Adjusted-R2"
+rsq %>% 
+        ggvis(x=~ c(1:nrow(rsq)), y=~`Adjusted-R2` ) %>%
+        layer_points(fill = ~`Adjusted-R2`) %>%
+        add_axis("y", title = "Adjusted-R2`") %>% 
+        add_axis("x", title = "Number of variables")
+
+#the final Adjusted R2 is very high
+
+reg.summary <- summary(m)
+
+
+#compare RSS, Cp, bic, adjr2
+par(mfrow=c(2,2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",type="l")
+plot(reg.summary$adjr2 ,xlab="Number of Variables ", ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(which.max(reg.summary$adjr2),reg.summary$adjr2[which.max(reg.summary$adjr2)], col="red",cex=2,pch=20)
+plot(reg.summary$cp ,xlab="Number of Variables ",ylab="Cp", type='l')
+which.min(reg.summary$cp )
+points(which.min(reg.summary$cp ),reg.summary$cp [which.min(reg.summary$cp )],col="red",cex=2,pch=20)
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type='l')
+which.min(reg.summary$bic )
+points(which.min(reg.summary$bic ),reg.summary$bic [which.min(reg.summary$bic )],col="red",cex=2,pch=20)
+par(mfrow=c(1,1))
+
+
+coef(m, 8)
+
+
+#a selected best model by adjr2
+m3 <- lm( popularity ~ track_duration_mean +   track_loudness_mean + track_speechiness_mean + track_speechiness_IQR + track_acousticness_IQR    +   track_valence_IQR  +      track_tempo_mean   +track_tempo_IQR,data= data_2)
+summary(m3)
+
+#predictions on testing data
+preds <- predict(m3, newdata = data_3 )
+
+absolute_bs3 <- sqrt(mean((preds - data_3$popularity)^2))
+mse_bs3 <- mean((preds - data_3$popularity)^2)
+```
+
 Looking at ridge regression... The commented lines were used to visualise the datasets in our dummy runs but were not rerun as part of the actual methods
 ```{r ridgeregression}
-set.seed(666)
+
 #Get training_data_pop from EDA file
 #Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
 ridge_reg <- function(data){
@@ -342,7 +525,7 @@ x_data1 <- model.matrix(popularity ~ ., data_1)
 y_data1 <- define_y(data_1)
 ridge_pred_1 <- predict(ridge_data1, newx = x_data1)
 mse_model1 <- mean((ridge_pred_1 - y_data1)^2)
-ridge_med_1 <- median((ridge_pred_1 - y_data1))
+absolute_ridge1 <- median(sqrt((ridge_pred_1 - y_data1)^2))
 #Extract the coefficients of each variable in the model
 ridge_data1$beta
 
@@ -353,7 +536,7 @@ x_data2 <- model.matrix(popularity ~ ., data_2)
 y_data2 <- define_y(data_2)
 ridge_pred_2 <- predict(ridge_data2, newx = x_data2)
 mse_model2 <- mean((ridge_pred_2 - y_data2)^2)
-ridge_med_2 <- median((ridge_pred_2 - y_data2))
+absolute_ridge2 <- median(sqrt((ridge_pred_2 - y_data2)^2))
 #Extract the coefficients of each variable in the model
 ridge_data2$beta
 
@@ -364,7 +547,7 @@ x_data3 <- model.matrix(popularity ~ ., data_3)
 y_data3 <- define_y(data_3)
 ridge_pred_3 <- predict(ridge_data3, newx = x_data3)
 mse_model_3 <- mean((ridge_pred_3 - y_data3)^2)
-ridge_med_3 <- median((ridge_pred_3 - y_data3))
+absolute_ridge3 <- median(sqrt((ridge_pred_3 - y_data3)^2))
 #Extract the coefficients of each variable in the model
 ridge_data1$beta
 ```
@@ -382,10 +565,6 @@ y <- define_y(model_data)
 
 grid <- 10^seq(10, -2, length = 100)
 ridge_mod <- glmnet(x, y, alpha = 1)
-
-#Looking at the model
-#dim(coef(ridge_mod))
-#plot(ridge_mod)    # Draw plot of coefficients
 
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
 for(i in 1:nrow(model_data)){
@@ -431,7 +610,7 @@ lx_data1 <- model.matrix(popularity ~ ., data_1)
 ly_data1 <- define_y(data_1)
 lasso_pred_1 <- predict(lasso_data1, newx = lx_data1)
 lmse_model1 <- mean((lasso_pred_1 - ly_data1)^2)
-lasso_med_1 <- median((lasso_pred_1 - ly_data1))
+absolute_lasso1 <- median(sqrt((lasso_pred_1 - ly_data1)^2))
 #Extract the coefficients of each variable in the model
 lasso_data1$beta
 
@@ -440,7 +619,7 @@ lx_data2 <- model.matrix(popularity ~ ., data_2)
 ly_data2 <- define_y(data_2)
 lasso_pred_2 <- predict(lasso_data1, newx = lx_data2)
 lmse_model2 <- mean((lasso_pred_2 - ly_data2)^2)
-lass0_med_2 <- median((lasso_pred_2 - ly_data2))
+absolute_lasso2 <- median(sqrt((lasso_pred_2 - ly_data2)^2))
 #Extract the coefficients of each variable in the model
 lasso_data2$beta
 
@@ -449,11 +628,21 @@ lx_data3 <- model.matrix(popularity ~ ., data_3)
 ly_data3 <- define_y(data_3)
 lasso_pred_3 <- predict(lasso_data3, newx = lx_data3)
 lmse_model3 <- mean((lasso_pred_3 - ly_data3)^2)
-lasso_med_3 <- median((lasso_pred_3 - ly_data3))
+absolute_lasso3 <- median(sqrt((lasso_pred_3 - ly_data3)^2))
 #Extract the coefficients of each variable in the model
 lasso_data3$beta
 ```
 From this it seems the ridge regression model performs better in terms of MSE although the Lasso Model has the benefit of discarding some paremeters as the values associated with them are zero, whereas ridge gives a value to every input (no subset selection).
+Summary of all the models:
+```{r}
+tibble(method = c("Best Subset Selection 1", "Best Subset Selection 2", "Best Subset Selection 3",
+                  "Ridge 1","Ridge 2","Ridge 3", "Lasso 1", "Lasso 2", "Lasso 3"),
+  MSE = c(mse_bs1, mse_bs2, mse_bs3, mse_model1, mse_model2, mse_model_3, lmse_model1, lmse_model2, lmse_model3), 
+       AE = c(absolute_bs1, absolute_bs2, absolute_bs3, absolute_ridge1, absolute_ridge2, 
+              absolute_ridge3, absolute_lasso1, absolute_lasso2, absolute_lasso3))
+
+```
+Reading the data in
 ```{r}
 #saving the rdata
 save.image(file = "ridge_lasso.Rdata")
