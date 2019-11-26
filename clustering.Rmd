@@ -86,7 +86,7 @@ genre_words <- unlist(split_genres)
 
 #genre_words <- replace(genre_words, (genre_words == "hip" | genre_words == "hop"), "hip-hop")
 
-unique_genre_words <- unique(genre_words)
+#unique_genre_words <- unique(genre_words)
 
 cutoff_freq <- 5
 
