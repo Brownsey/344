@@ -19,6 +19,9 @@ library(ggplot2)
 library(rio)
 library(factoextra)
 library(FactoMineR)
+library(BBmisc)
+library(pvclust)
+library(NbClust)
 
 import <- read_csv("inst/edited_spotify.csv")
 
@@ -92,74 +95,13 @@ most_frequent_words <- subset(as.data.frame(table(genre_words)), (Freq > cutoff_
 genre_freq_plot <- most_frequent_words %>% 
   ggplot(aes(x=genre_words, y=Freq)) + geom_col()
 
-print(genre_freq_plot)
+#print(genre_freq_plot)
 
 ```
 
-```{r genre overlap function}
+```{r nomalise function}
 
-genre_overlap <- function(genre1, genre2) {
-  
-  genre_appearance <- 0
-  overlap <- 0
-  
-  for(i in 1:length(training_data$Artist)){
-    
-    if(str_detect(training_data$ArtistGenres[i], genre1) &
-       str_detect(training_data$ArtistGenres[i], genre2)) {
-      
-       overlap <- overlap + 1
-       genre_appearance <- genre_appearance + 1
-    
-    } else {
-      
-      if(str_detect(training_data$ArtistGenres[i], genre2)){
-      genre_appearance <- genre_appearance + 1
-      }
-      
-      if(str_detect(training_data$ArtistGenres[i], genre1)){
-      genre_appearance <- genre_appearance + 1
-      }
-    }
-  }
-  
-  return(overlap/(genre_appearance))
-}
-
-```
-
-```{r find genre overlaps}
-
-genre_overlaps <- matrix(nrow = length(most_frequent_words$genre_words),
-                         ncol = length(most_frequent_words$genre_words),
-                         dimnames = list(as.character(most_frequent_words$genre_words),
-                                         as.character(most_frequent_words$genre_words)))
-
-for(i in 1:length(most_frequent_words$genre_words)) {
-  for(j in 1:length(most_frequent_words$genre_words)) {
-    genre_overlaps[i,j] <- genre_overlap(as.character(most_frequent_words$genre_words[i]),
-                                         as.character(most_frequent_words$genre_words[j]))
-  }
-}
-
-most_frequent_words %>% mutate(correlationcoeff = colSums(genre_overlaps))
-
-```
-
-```{r link genres to tracks}
-
-# associate tracks that have multiple genres with the most frequent genre (since these will be broader)
-
-training_data <- training_data %>% mutate(TrueCluster = (row_number()-row_number()))
-
-for(i in 1:length(training_data$ArtistID)) {
-  if(str_detect(training_data$ArtistGenres[i], "folk")) {training_data$TrueCluster[i] <- 5}
-  if(str_detect(training_data$ArtistGenres[i], "indie")) {training_data$TrueCluster[i] <- 4}
-  if(str_detect(training_data$ArtistGenres[i], "hip")) {training_data$TrueCluster[i] <- 3}
-  if(str_detect(training_data$ArtistGenres[i], "hop")) {training_data$TrueCluster[i] <- 3}
-  if(str_detect(training_data$ArtistGenres[i], "pop")) {training_data$TrueCluster[i] <- 2}
-  if(str_detect(training_data$ArtistGenres[i], "rock")) {training_data$TrueCluster[i] <- 1}
-}
+standardize <- function(x){(x-min(x))/(max(x)-min(x))}
 
 ```
 
@@ -169,24 +111,48 @@ clustering_training_data <- training_data[c("TrackDuration", "TrackDanceability"
                                             "TrackEnergy", "TrackKey", "TrackLoudness",
                                             "TrackSpeechiness", "TrackAcousticness",
                                             "TrackInstrumentalness", "TrackLiveness", 
-                                            "TrackValence", "TrackTempo")]
+                                            "TrackValence", "TrackTempo")] %>%
+  mutate(TrackDuration = standardize(TrackDuration)) %>% 
+  mutate(TrackKey = standardize(TrackKey)) %>% 
+  mutate(TrackLoudness = standardize(TrackLoudness)) %>%
+  mutate(TrackTempo = standardize(TrackTempo))
 
-clusters <- pam(clustering_training_data, 6)
+clustered <- agnes(dist(clustering_training_data, method = "euclidian"), diss=TRUE, method = "ward")
 
-plotcluster(clustering_training_data, clusters$cluster)
+#fviz_dend(clustered, k=12, show_labels = FALSE)
+
+analysis_of_clusters <- NbClust(clustering_training_data, distance="euclidean", min.nc=4, max.nc=9,
+                                method="ward.D2", index="all")
+
+fviz_nbclust(analysis_of_clusters)
 
 ```
 
+```{r compare cluster methods}
 
+# Some of this code took ages to run so I commented it out
 
+# matrix of methods to compare
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
 
+distances <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
+names(distances) <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
 
+#clust_comps <- matrix(nrow = length(distances), ncol = length(m), 
+#                      dimnames = list(distances,m))
 
+# function to compute coefficient
+ac <- function(distance, linkage) {
+  dista <- dist(clustering_training_data, method = distance)
+  agnes(dista, method = linkage)$ac
+}
 
+for(i in 1:length(distances)) {
+  for(j in 1:length(m)) {
+    clust_comps[i,j] <- ac(distances[i], m[j])
+  }
+}
 
-
-
-
-
-
+```
 
