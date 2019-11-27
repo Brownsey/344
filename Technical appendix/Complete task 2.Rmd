@@ -228,7 +228,7 @@ The following function simply classifies a song using the k-Nearest Neighbours a
 
 ```{r kNN function}
 
-# use k value of sqrt(2375) = ~49 for now
+# use k value of sqrt(2375) = ~49 by professional convention
 
 # assume song is a name of a track from the classification test data
 
@@ -249,7 +249,7 @@ Finally, the completed function takes a song from the test data set, finds the d
 
 # let exploration be the variance of the sampling distribution
 
-recommend_new_song <- function(song_name, exploration) {
+recommend_new_song <- function(song_name, exploration=0.5) {
   
   # find the cluster that the new track is in
   
@@ -279,7 +279,7 @@ recommend_new_song <- function(song_name, exploration) {
   
   for(i in 1:(dim(tracks_in_cluster[,-1])[1])) {
     
-    distances[i,2] <- rnorm(1, distances[i,2], exploration)
+    distances[i,2] <- distances[i,2]*abs(rnorm(1, 1, exploration))
   
   }
   
