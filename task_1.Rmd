@@ -33,6 +33,7 @@ clean_data <- spotify.clustering %>%
   mutate(Artist = ifelse(Artist %>% 
                            str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
   mutate(AlbumBestChartPosition = ifelse(AlbumBestChartPosition %>% 
+                  #Assumption if chart position is #NA it never made it to the charts
                            str_detect("#N/A"), 0, AlbumBestChartPosition)) %>%
     mutate(AlbumBestChartPosition= as.numeric(AlbumBestChartPosition)) %>%
   na.omit() %>%
@@ -183,7 +184,7 @@ spotify_summarise <- function(x){
             track_danceability_mean = mean(TrackDanceability),
             track_danceability_IQR = IQR(TrackDanceability),
             track_energy_mean = mean(TrackEnergy),
-            track_energy_mean = mean(TrackEnergy),
+            track_energy_IQR = IQR(TrackEnergy),
             track_loudness_mean = mean(TrackLoudness),
             track_loudness_IQR = IQR(TrackLoudness),
             track_speechiness_mean = mean(TrackSpeechiness),
@@ -635,17 +636,22 @@ lasso_data3$beta
 From this it seems the ridge regression model performs better in terms of MSE although the Lasso Model has the benefit of discarding some paremeters as the values associated with them are zero, whereas ridge gives a value to every input (no subset selection).
 Summary of all the models:
 ```{r}
-tibble(method = c("Best Subset Selection 1", "Best Subset Selection 2", "Best Subset Selection 3",
+model_summary <- tibble(method = c("Best Subset Selection 1", "Best Subset Selection 2", "Best Subset Selection 3",
                   "Ridge 1","Ridge 2","Ridge 3", "Lasso 1", "Lasso 2", "Lasso 3"),
   MSE = c(mse_bs1, mse_bs2, mse_bs3, mse_model1, mse_model2, mse_model_3, lmse_model1, lmse_model2, lmse_model3), 
        AE = c(absolute_bs1, absolute_bs2, absolute_bs3, absolute_ridge1, absolute_ridge2, 
               absolute_ridge3, absolute_lasso1, absolute_lasso2, absolute_lasso3))
+model_summary
 
+ridge_best <- ridge_data3$beta
+ridge_best
+lasso_best <- lasso_data3$beta
+lasso_best
 ```
 Reading the data in
 ```{r}
 #saving the rdata
-save.image(file = "ridge_lasso.Rdata")
+save.image(file = "models.Rdata")
 #Can be loaded with:
 #load("ridge_lasso.Rdata)
 ```
