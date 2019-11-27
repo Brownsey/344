@@ -78,7 +78,7 @@ training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
 
 
 A new popularity variable needs to be defined to take into account all the other popularity variables
-```{r newPop, warnings = FALSE}
+```{r newPop, message=F, warning=F}
 #Future maybe not implement due to time but could functionalise this and then use k fold cross validation but would take a LONG time to run, (hours).
 #Looking at implementing new variables for each popularity variable
 #Can then take this and normalise to give a score out of 100.
@@ -175,7 +175,7 @@ for(i in 1:10){
 }
 ```
 Defining a function to summarise the data input and define the y variable 
-```{r}
+```{r, message=F, warning=F}
 spotify_summarise <- function(x){
   x %>%
      group_by(Artist, AlbumName, AlbumReleaseDate) %>%
@@ -211,7 +211,7 @@ y %>%
 }
 ```
 First Popularity Combination
-```{r}
+```{r, message=F, warning=F}
 #Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
 #Should probably add some sort of verification to the numbers for now they are arbitrary?
 #Tried 2 and 5 for the multiplcation parameter in the years since release scaling 
@@ -236,7 +236,7 @@ data_1 <- training_data_pop_1 %>%
 ```
 
 Second Popularity Combination
-```{r}
+```{r, message=F, warning=F}
 #Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
 #Should probably add some sort of verification to the numbers for now they are arbitrary?
 value <- 100/3
@@ -257,7 +257,7 @@ data_2 <- training_data_pop_2 %>%
   select(-AlbumName, -Artist, -AlbumReleaseDate)
 ```
 Third Popularity Combination
-```{r}
+```{r, message=F, warning=F}
 #Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
 #Should probably add some sort of verification to the numbers for now they are arbitrary?
 value <- 100/6
@@ -282,7 +282,7 @@ data_3 <- training_data_pop_3 %>%
 
 Looking at the the three datasets using best subset regression:
 Dataset 1:
-```{r}
+```{r, message=F, warning=F}
 #all subsets regression
 
 
@@ -342,7 +342,7 @@ mse_bs1 <- mean((preds - data_1$popularity)^2)
 absolute_bs1 <- sqrt( mean((preds - data_1$popularity)^2) )
 ```
 Dataset 2:
-```{r}
+```{r, message=F, warning=F}
 #all subsets regression
 
 
@@ -403,7 +403,7 @@ absolute_bs2 <- sqrt( mean((preds - data_2$popularity)^2) )
 mse_bs2 <- mean((preds - data_2$popularity)^2) 
 ```
 Third Dataset:
-```{r}
+```{r, message=F, warning=F}
 m <- regsubsets(popularity ~ ., data = data_3)
 
 summary(m)
@@ -462,7 +462,7 @@ mse_bs3 <- mean((preds - data_3$popularity)^2)
 ```
 
 Looking at ridge regression... The commented lines were used to visualise the datasets in our dummy runs but were not rerun as part of the actual methods
-```{r ridgeregression}
+```{r ridgeregression, message=F, warning=F}
 
 #Get training_data_pop from EDA file
 #Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
@@ -518,7 +518,7 @@ glmnet(x, y, alpha = 0, lambda = mean_lambda)
 }
 ```
 Running Ridge Regression on our three datasets and looking at MSE.
-```{r}
+```{r, message=F, warning=F}
 #Dataset 1
 ridge_data1 <- ridge_reg(data_1)
 #MSE of entire training dataset
@@ -528,7 +528,6 @@ ridge_pred_1 <- predict(ridge_data1, newx = x_data1)
 mse_model1 <- mean((ridge_pred_1 - y_data1)^2)
 absolute_ridge1 <- median(sqrt((ridge_pred_1 - y_data1)^2))
 #Extract the coefficients of each variable in the model
-ridge_data1$beta
 
 #Dataset2
 ridge_data2 <- ridge_reg(data_2)
@@ -539,7 +538,6 @@ ridge_pred_2 <- predict(ridge_data2, newx = x_data2)
 mse_model2 <- mean((ridge_pred_2 - y_data2)^2)
 absolute_ridge2 <- median(sqrt((ridge_pred_2 - y_data2)^2))
 #Extract the coefficients of each variable in the model
-ridge_data2$beta
 
 #Dataset 3
 ridge_data3 <- ridge_reg(data_3)
@@ -550,10 +548,9 @@ ridge_pred_3 <- predict(ridge_data3, newx = x_data3)
 mse_model_3 <- mean((ridge_pred_3 - y_data3)^2)
 absolute_ridge3 <- median(sqrt((ridge_pred_3 - y_data3)^2))
 #Extract the coefficients of each variable in the model
-ridge_data1$beta
 ```
 Looking at the Lasso linear modelling method to see if we can improve on ridge regression
-```{r ridgeregression}
+```{r ridgeregression, message=F, warning=F}
 set.seed(666)
 #Get training_data_pop from EDA file
 #Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
@@ -605,7 +602,7 @@ glmnet(x, y, alpha = 1, lambda = mean_lambda)
 }
 ```
 Lasso outputs
-```{r}
+```{r, message=F, warning=F}
 lasso_data1 <- lasso_reg(data_1)
 lx_data1 <- model.matrix(popularity ~ ., data_1)
 ly_data1 <- define_y(data_1)
@@ -613,7 +610,6 @@ lasso_pred_1 <- predict(lasso_data1, newx = lx_data1)
 lmse_model1 <- mean((lasso_pred_1 - ly_data1)^2)
 absolute_lasso1 <- median(sqrt((lasso_pred_1 - ly_data1)^2))
 #Extract the coefficients of each variable in the model
-lasso_data1$beta
 
 lasso_data2 <- lasso_reg(data_2)
 lx_data2 <- model.matrix(popularity ~ ., data_2)
@@ -622,7 +618,6 @@ lasso_pred_2 <- predict(lasso_data1, newx = lx_data2)
 lmse_model2 <- mean((lasso_pred_2 - ly_data2)^2)
 absolute_lasso2 <- median(sqrt((lasso_pred_2 - ly_data2)^2))
 #Extract the coefficients of each variable in the model
-lasso_data2$beta
 
 lasso_data3 <- lasso_reg(data_3)
 lx_data3 <- model.matrix(popularity ~ ., data_3)
@@ -631,11 +626,10 @@ lasso_pred_3 <- predict(lasso_data3, newx = lx_data3)
 lmse_model3 <- mean((lasso_pred_3 - ly_data3)^2)
 absolute_lasso3 <- median(sqrt((lasso_pred_3 - ly_data3)^2))
 #Extract the coefficients of each variable in the model
-lasso_data3$beta
 ```
 From this it seems the ridge regression model performs better in terms of MSE although the Lasso Model has the benefit of discarding some paremeters as the values associated with them are zero, whereas ridge gives a value to every input (no subset selection).
 Summary of all the models:
-```{r}
+```{r, message=F, warning=F}
 model_summary <- tibble(method = c("Best Subset Selection 1", "Best Subset Selection 2", "Best Subset Selection 3",
                   "Ridge 1","Ridge 2","Ridge 3", "Lasso 1", "Lasso 2", "Lasso 3"),
   MSE = c(mse_bs1, mse_bs2, mse_bs3, mse_model1, mse_model2, mse_model_3, lmse_model1, lmse_model2, lmse_model3), 
@@ -648,10 +642,10 @@ ridge_best
 lasso_best <- lasso_data3$beta
 lasso_best
 ```
-Reading the data in
+To save time, if the output needs to be seen quickly then the following rcode loads a previously saved image of the R environment so all the variables can be referenced. Commented out as only needs to be run if not knitting and want to see variables quickly
 ```{r}
 #saving the rdata
-save.image(file = "models.Rdata")
+#save.image(file = "models.Rdata")
 #Can be loaded with:
-#load("ridge_lasso.Rdata)
+#load("models.Rdata)
 ```
