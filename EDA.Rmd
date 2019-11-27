@@ -1,12 +1,16 @@
 ---
-title: "EDA"
+title: "Group 8 Technical Appendix"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## Introduction
+This Appendix will be broken down into three parts. The first will go over some general data analysis which undertaken to get a visual feel of the dataset that was being worked with, this includes loading all the data, cleaning and subsetting as required.
+The second will cover the implementation of Task 1 and finally the third will cover the implementation of Task 2.
 
+## Section 1: General EDA
 ```{r libraries, results= "hide", message=F, warning=F}
 library(tidyverse)
 library(lubridate)
@@ -43,8 +47,8 @@ clean_data <- spotify.clustering %>%
   mutate(id = row_number()) %>%
   mutate(id = as.character(id)) 
 sapply(data, class)
-
-aggr(clean_data) # checks for missing data
+# checks for missing data
+aggr(clean_data) 
 
 #Extracting the Test data which will not be used for 
 test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
@@ -83,6 +87,22 @@ training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
 
 
 ## General EDA
+
+The ggpairs function is really useful to summarise all the variables in a neat readable way, in the code below only the parameter variables will be taken into consideration in the first ggpairs. In the second one, all the popularity variables will be considered.
+```{r ggpairs, message=F, warning=F}
+#Takes a few minutes to run
+#Though there a few too many variables here to see clearly in the knitted pdf,
+#however within the Rstudio Session you can zoom on the plot and then
+#All the values can be seen
+ggpairs_1 <- ggpairs(data = training_data_subsetted, title = "Predictor Variables")
+ggpairs_1
+ggpairs_2 <- ggpairs(data = training_data %>%
+                       select(ArtistNumFollowers, ArtistPopularity, AlbumWeeksNumberOne,
+                              AlbumBestChartPosition, AlbumWeeksOnChart),
+                     title = "Popularity Variables")
+ggpairs_2
+```
+
 ```{r summarisies, message=F, warning=F}
 MyData = {training_data %>% 
     group_by(Artist,AlbumName,AlbumReleaseDate) %>% 
@@ -101,25 +121,6 @@ MyData = {training_data %>%
               AlbumTempo = mean(TrackTempo),	
               AlbumTimeSignature = mean(TrackTimeSignature) )}
 
-
-#Looking at album popularity on it's own
-
-MyData1 = {training_data %>% 
-    group_by(ArtistPopularity) %>% 
-    summarize(ArtistDanceability = mean(TrackDanceability),
-              ArtistLoudness = mean(TrackLoudness),
-              ArtistSpeechiness = mean(TrackSpeechiness),
-              ArtistDuration = mean(TrackDuration),
-              ArtistNumber = mean(TrackNumber),	
-              ArtistEnergy = mean(TrackEnergy),	
-              ArtistKey = mean(TrackKey),	
-              ArtistMode = mean(TrackMode),	
-              ArtistAcousticness = mean(TrackAcousticness),	
-              ArtistInstrumentalness = mean(TrackInstrumentalness),	
-              ArtistLiveness = mean(TrackLiveness),
-              ArtistValence = mean(TrackValence),
-              ArtistTempo = mean(TrackTempo),	
-              ArtistTimeSignature = mean(TrackTimeSignature) )}
 ```
 
 ```{r albumpopularity, message=F, warning=F}
@@ -140,8 +141,6 @@ MyData2 = {training_data %>%
               AlbumTempo = mean(TrackTempo),	
               AlbumTimeSignature = mean(TrackTimeSignature) )}
 
-#ggpairs(MyData2)
-
 #scatterplot function for visualising data combinations
 scatter_plot <- function(x, y){
   MyData2 %>%
@@ -151,6 +150,7 @@ scatter_plot <- function(x, y){
     theme_bw()
 }
 
+#For visualise purposes want to look at the variables versus album popularity
 s1 <- scatter_plot("AlbumDanceability", " AlbumPopularity")
 s2 <-scatter_plot("AlbumLoudness", "AlbumPopularity")
 s3 <-scatter_plot("AlbumEnergy", "AlbumPopularity")
@@ -168,9 +168,11 @@ s14 <-scatter_plot("AlbumTimeSignature", "AlbumPopularity")
 
 plot_grid(s1,s2,s3,s4,s5,s6,  nrow = 3, ncol = 2)
 plot_grid(s7,s8,s9,s10,s11,s12, s13,s14, nrow = 4, ncol = 2)
+#End conclusions from this involve the necessity to define our own
+#popularity variable using all popularity parameters
 ```
 
-## Specific
+Looking at correlations between the variables for interest.
 ```{r correlations}
 correlations <- round(cor(training_data_subsetted),2)
 correlations
@@ -186,7 +188,7 @@ corrplot(correlations, method = "color", col = col(200),
          # hide correlation coefficient on the principal diagonal
          diag = FALSE, tl.cex = 0.8)
 ```
-
+Looking at the how the popularity of music varies over time.
 ```{r most popularity music type trend, message=F, warning=F}
 res <- strsplit(training_data$ArtistGenres, split = ",")
 uniques <- unique(unlist(res))
@@ -227,66 +229,3 @@ means21$popularity <- as.numeric(as.character(means21$popularity))
 ggplot(means21, aes(year, popularity)) + geom_line(color = "indianred") + geom_point(color = "blue") + 
   theme_classic() + geom_text(aes(label = type) ,check_overlap = TRUE, size = 4, nudge_y = 0.1) + ggtitle("all time most popularity music type")
 ```
-## Specific Task 2 EDA
-The following code covers some EDA into the genres using stringr and also number of clusters using the pam clustering function
-```{r clustering, message=F, warning=F}
-#Genre analysis using stringr to extract the most commonly appearing words
-spotify.genres <- read_excel("inst/edited_spotify.xlsx") %>% 
-  mutate(ArtistGenres = strsplit(ArtistGenres, ","))
-
-genres <- na.omit(unique(unlist(spotify.genres$ArtistGenres)))
-
-split_genres <- NULL
-
-for(i in 1:length(genres)) {
-  split_genres[i] <- strsplit(genres[i], " ")
-}
-
-genre_words <- unlist(split_genres)
-
-unique_genre_words <- unique(genre_words)
-
-genre_words_table <- subset(as.data.frame(table(genre_words)), (Freq > 7))
-
-genre_freq_plot <- ggplot(data = genre_words_table, aes(x=genre_words, y=Freq)) +
-  geom_col() + 
-  theme_bw()
-
-print(genre_freq_plot)
-
-#Taking a look at the clustering of the predictor variables
-clustering_training_data <- training_data[c("TrackDuration", "TrackDanceability",
-                                            "TrackEnergy", "TrackKey", "TrackLoudness",
-                                            "TrackSpeechiness", "TrackAcousticness",
-                                            "TrackInstrumentalness", "TrackLiveness", 
-                                            "TrackValence", "TrackTempo")]
-#Looking at the clusters with 6 as shown from the genre analysis
-clusters <- pam(clustering_training_data, 6)
-plotcluster(clustering_training_data, clusters$cluster, color = TRUE,
-            shade = TRUE, lines = 0)
-# Looking at all combinations of clusters from 1 to 10 for visualisation purposes.
-# Takes about 4minutes to run and uses up about 5-6 pages in plots but
-# It basically shows that < 3 clusters is not enough and > 6 clusters is too many
-# Acts as a way to back up our future cluster choice of 5.
-# for(i in 1:10){
-#   clusters <- pam(clustering_training_data, i)
-# plotcluster(clustering_training_data, clusters$cluster, color = TRUE,
-#             shade = TRUE, lines = 0)
-# }
-```
-
-The ggpairs function is really useful to summarise all the variables in a neat readable way, in the code below only the parameter variables will be taken into consideration in the first ggpairs. In the second one, all the popularity variables will be considered.
-```{r ggpairs, message=F, warning=F}
-#Takes a few minutes to run
-#Though there a few too many variables here to see clearly in the knitted pdf,
-#however within the Rstudio Session you can zoom on the plot and then
-#All the values can be seen
-ggpairs_1 <- ggpairs(data = training_data_subsetted, title = "Predictor Variables")
-ggpairs_1
-ggpairs_2 <- ggpairs(data = training_data %>%
-                       select(ArtistNumFollowers, ArtistPopularity, AlbumWeeksNumberOne,
-                              AlbumBestChartPosition, AlbumWeeksOnChart),
-                     title = "Popularity Variables")
-ggpairs_2
-```
-

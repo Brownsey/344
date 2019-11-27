@@ -1,0 +1,1111 @@
+---
+title: "Group 8 Technical Appendix"
+output: pdf_document
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+This Appendix will be broken down into three parts. The first will go over some general data analysis which undertaken to get a visual feel of the dataset that was being worked with, this includes loading all the data, cleaning and subsetting as required.
+The second will cover the implementation of Task 1 and finally the third will cover the implementation of Task 2.
+
+## Section 1: General EDA
+Loading all the required libraries:
+```{r libraries, results= "hide", message=F, warning=F}
+library(tidyverse)
+library(lubridate)
+library(GGally)
+library(cluster)
+library(VIM)
+library(fpc)
+library(leaps)
+library(readxl)
+library(cowplot)
+library(corrplot)
+library(readxl)
+library(gridExtra)
+library(ISLR)
+library(glmnet)
+library(ggvis)
+library(knitr)
+library(rio)
+library(factoextra)
+library(FactoMineR)
+library(BBmisc)
+library(pvclust)
+library(NbClust)
+library(class)
+```
+
+Firstly, we'll setup the import the dataset and split it into training and test data.
+```{r codesetup, results= "hide", message=F, warning=F}
+#.csv version for convenience if required.
+#spotify.clustering <- read_csv("inst/edited_spotify.csv")
+#Our spotify data was located within our inst folder on github -> may need to remove inst/ for it to run
+spotify.clustering <- read_excel("inst/edited_spotify.xlsx")
+
+#Cleaning the data for use
+clean_data <- spotify.clustering %>%
+  mutate(AlbumReleaseDate = parse_date_time(AlbumReleaseDate, orders = c("y", "ym","ymd"))) %>%
+  #Old-school grepl method
+  mutate(Artist = ifelse(grepl("Beyonc*", Artist), 'Beyonce', Artist)) %>%
+  #Tidyverse str_detect method
+  mutate(Artist = ifelse(Artist %>% 
+                           str_detect("Janelle Mon*"), 'Janelle Monae', Artist)) %>%
+  mutate(AlbumBestChartPosition = ifelse(AlbumBestChartPosition %>% 
+                           str_detect("#N/A"), 0, AlbumBestChartPosition)) %>%
+  mutate(AlbumBestChartPosition = as.numeric(AlbumBestChartPosition)) %>%
+  na.omit() %>%
+  mutate(id = row_number()) %>%
+  mutate(id = as.character(id)) 
+sapply(data, class)
+# checks for missing data
+aggr(clean_data) 
+
+#Extracting the Test data which will not be used for 
+test_data <- subset(clean_data, ((AlbumName == "A Girl Called Dusty") | 
+                                 (AlbumName == "Action!") |
+                                 (AlbumName == "Selling England By The Pound") |
+                                 (AlbumName == "Carpenters") | 
+                                 (AlbumName == "Ride On") |
+                                 (AlbumName == "Autoamerican") |
+                                 (AlbumName == "Selected Ambient Works 85-92") |    
+                                 (AlbumName == "Different Class") |
+                                 (AlbumName == "O") |
+                                 (AlbumName == "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") |
+                                 (AlbumName == "AM") |
+                                 (AlbumName == "An Awesome Wave")))
+
+#Defining the training data that will be used for the models
+training_data <- subset(clean_data, ((AlbumName != "A Girl Called Dusty") & 
+                                     (AlbumName != "Action!") &
+                                     (AlbumName != "Selling England By The Pound") &
+                                     (AlbumName != "Carpenters") & 
+                                     (AlbumName != "Ride On") &
+                                     (AlbumName != "Autoamerican") &
+                                     (AlbumName != "Selected Ambient Works 85-92") &    
+                                     (AlbumName != "Different Class") &
+                                     (AlbumName != "O") &
+                                     (AlbumName != "The Elder Scrolls IV: Oblivion: Original Game Soundtrack") &
+                                     (AlbumName != "AM") &
+                                     (AlbumName != "An Awesome Wave")))
+
+training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
+                                 "TrackEnergy", "TrackKey", "TrackLoudness",
+                                 "TrackSpeechiness", "TrackAcousticness",
+                                 "TrackInstrumentalness", "TrackLiveness", "TrackValence",
+                                 "TrackTempo")]
+```
+
+
+## General EDA
+
+The ggpairs function is really useful to summarise all the variables in a neat readable way, in the code below only the parameter variables will be taken into consideration in the first ggpairs. In the second one, all the popularity variables will be considered.
+```{r ggpairs, message=F, warning=F}
+#Takes a few minutes to run
+#Though there a few too many variables here to see clearly in the knitted pdf,
+#however within the Rstudio Session you can zoom on the plot and then
+#All the values can be seen
+ggpairs_1 <- ggpairs(data = training_data_subsetted, title = "Predictor Variables")
+ggpairs_1
+ggpairs_2 <- ggpairs(data = training_data %>%
+                       select(ArtistNumFollowers, ArtistPopularity, AlbumWeeksNumberOne,
+                              AlbumBestChartPosition, AlbumWeeksOnChart),
+                     title = "Popularity Variables")
+ggpairs_2
+```
+
+```{r summarisies, message=F, warning=F}
+MyData = {training_data %>% 
+    group_by(Artist,AlbumName,AlbumReleaseDate) %>% 
+    summarize(AlbumDanceability = mean(TrackDanceability),
+              AlbumLoudness = mean(TrackLoudness),
+              AlbumSpeechiness = mean(TrackSpeechiness),
+              AlbumDuration = mean(TrackDuration),
+              AlbumNumber = mean(TrackNumber),	
+              AlbumEnergy = mean(TrackEnergy),	
+              AlbumKey = mean(TrackKey),	
+              AlbumMode = mean(TrackMode),	
+              AlbumAcousticness = mean(TrackAcousticness),	
+              AlbumInstrumentalness = mean(TrackInstrumentalness),	
+              AlbumLiveness = mean(TrackLiveness),
+              AlbumValence = mean(TrackValence),
+              AlbumTempo = mean(TrackTempo),	
+              AlbumTimeSignature = mean(TrackTimeSignature) )}
+
+```
+
+```{r albumpopularity, message=F, warning=F}
+MyData2 = {training_data %>% 
+    group_by(AlbumPopularity) %>% 
+    summarize(AlbumDanceability = mean(TrackDanceability),
+              AlbumLoudness = mean(TrackLoudness),
+              AlbumSpeechiness = mean(TrackSpeechiness),
+              AlbumDuration = mean(TrackDuration),
+              AlbumNumber = mean(TrackNumber),	
+              AlbumEnergy = mean(TrackEnergy),	
+              AlbumKey = mean(TrackKey),	
+              AlbumMode = mean(TrackMode),	
+              AlbumAcousticness = mean(TrackAcousticness),	
+              AlbumInstrumentalness = mean(TrackInstrumentalness),	
+              AlbumLiveness = mean(TrackLiveness),
+              AlbumValence = mean(TrackValence),
+              AlbumTempo = mean(TrackTempo),	
+              AlbumTimeSignature = mean(TrackTimeSignature) )}
+
+#scatterplot function for visualising data combinations
+scatter_plot <- function(x, y){
+  MyData2 %>%
+    ggplot(aes_string(x = x, y = y)) +
+    geom_point() +
+    geom_smooth() +
+    theme_bw()
+}
+
+#For visualise purposes want to look at the variables versus album popularity
+s1 <- scatter_plot("AlbumDanceability", " AlbumPopularity")
+s2 <-scatter_plot("AlbumLoudness", "AlbumPopularity")
+s3 <-scatter_plot("AlbumEnergy", "AlbumPopularity")
+s4 <-scatter_plot("AlbumSpeechiness", "AlbumPopularity")
+s5 <-scatter_plot("AlbumDuration", "AlbumPopularity")
+s6 <-scatter_plot("AlbumNumber", "AlbumPopularity")
+s7 <-scatter_plot("AlbumKey", "AlbumPopularity")
+s8 <-scatter_plot("AlbumMode", "AlbumPopularity")
+s9 <-scatter_plot("AlbumAcousticness", "AlbumPopularity")
+s10 <-scatter_plot("AlbumInstrumentalness", "AlbumPopularity")
+s11 <-scatter_plot("AlbumLiveness", "AlbumPopularity")
+s12 <-scatter_plot("AlbumValence", "AlbumPopularity")
+s13 <-scatter_plot("AlbumTempo", "AlbumPopularity")
+s14 <-scatter_plot("AlbumTimeSignature", "AlbumPopularity")
+
+plot_grid(s1,s2,s3,s4,s5,s6,  nrow = 3, ncol = 2)
+plot_grid(s7,s8,s9,s10,s11,s12, s13,s14, nrow = 4, ncol = 2)
+#End conclusions from this involve the necessity to define our own
+#popularity variable using all popularity parameters
+```
+
+Looking at correlations between the variables for interest.
+```{r correlations}
+correlations <- round(cor(training_data_subsetted),2)
+correlations
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+p.mat <- cor.mtest(training_data_subsetted)$p
+corrplot(correlations, method = "color", col = col(200),
+         type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 90, # Text label color and rotation
+         addCoef.col = "black",
+         # Combine with significance
+         p.mat = p.mat, sig.level = 0.01, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag = FALSE, tl.cex = 0.8)
+```
+Looking at the how the popularity of music varies over time.
+```{r most popularity music type trend, message=F, warning=F}
+res <- strsplit(training_data$ArtistGenres, split = ",")
+uniques <- unique(unlist(res))
+
+res2 <- NULL
+for(i in 1:nrow(training_data)) {
+  temp <- match(uniques, res[[i]])
+  res2 <- rbind(res2, temp)
+}
+
+res2[is.na(res2)] <- 0
+res2[res2 > 0] <- 1
+colnames(res2) <- uniques
+row.names(res2) <- 1:nrow(res2)
+newdat <- data.frame(year = year(training_data$AlbumReleaseDate), 
+                     popularity = training_data$ArtistPopularity,
+                     res2)
+means2 <- c()
+for(i in 3:ncol(newdat)) {
+    
+    means <- aggregate(popularity ~ year ,data = newdat[newdat[,i]==1,], mean)
+    means$type <- colnames(newdat)[i]
+    means2 <- rbind(means2, means)
+}
+
+means21 <-   NULL
+  for(i in sort( unique(means2$year))) {
+  aa <- means2[ means2$year == i,]
+  pos <- which.max(aa$popularity)
+  means21 <-  rbind(means21 , c(i,aa$popularity[pos], aa$type[pos]))
+  }
+
+means21 = data.frame(means21)
+colnames(means21) <- c("year","popularity","type")
+means21$year <- as.integer(as.character(means21$year))
+means21$popularity <- as.numeric(as.character(means21$popularity))
+
+ggplot(means21, aes(year, popularity)) + geom_line(color = "indianred") + geom_point(color = "blue") + 
+  theme_classic() + geom_text(aes(label = type) ,check_overlap = TRUE, size = 4, nudge_y = 0.1) + ggtitle("all time most popularity music type")
+```
+
+
+## Section 2: Implementation of Task 1:
+There was room for interpretation on this question, our interpretation was as follows:
+The training dataset is to be used as our data to create and test the models in the first instance. Then our Test data is mimicking the *new* artists who the recording label could invest in. The reason this was decided upon was the variables currently in our dataset are not as ideal in terms of predicting *song* popularity as we would like, so instead we'll focus on using it as a pilot study with popularity at an album level to test our ideas and theories. With the aim, not necessarily to optimise the function for the variables we currently but to pave a good grounding for the future implementation of the models on a larger, more commericial scale. In this way trying to 
+
+A new popularity variable needs to be defined to take into account all the other popularity variables
+```{r newPop, message=F, warning=F}
+set.seed(666)
+#Looking at implementing new variables for each popularity variable
+#Can then take this and normalise to give a score out of 100.
+#To start with the whole training dataset will be used
+normy <- function(x){
+  as.numeric(x)
+  quantile(x, c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), na.rm = TRUE)
+}
+#Assumption: NA means it didn't reach the charts, lower the position the better
+abcp_normy <- normy(training_data$AlbumBestChartPosition)
+anf_normy <- normy(training_data$ArtistNumFollowers)
+awoc_normy <- normy(training_data$AlbumWeeksOnChart)
+awn1_normy <- normy(training_data$AlbumWeeksNumberOne)
+ap_normy <- normy(training_data$AlbumPopularity)
+artp_normy <- normy(training_data$ArtistPopularity)
+
+#Gets the 20% percentile for example
+as.numeric(abcp_normy[6])
+
+training_data <- training_data %>%
+  mutate(album_bcp = if_else(AlbumBestChartPosition == 0, 1,
+                         if_else(AlbumBestChartPosition == 1, 10,
+                         if_else(AlbumBestChartPosition == 2, 9,
+                         if_else(AlbumBestChartPosition == 3, 8,
+                           0 ))))) %>% #... repeat for other variables
+  mutate(artist_follow_n = 0) %>%
+  mutate(album_pop_n = 0) %>%
+  mutate(artist_pop_n = 0) %>%
+  mutate(album_weeks_on_chart_n = if_else(AlbumWeeksOnChart == 0, 1, 0)) %>%
+  mutate(album_weeks_number_1n = if_else(AlbumWeeksNumberOne == 0, 1, 0)) %>%
+  mutate(popularity = -1) %>%
+  mutate(AlbumReleaseDate = as.numeric(format(AlbumReleaseDate, "%y"))) %>%
+  mutate(years_since_release = if_else(between(AlbumReleaseDate, 60, 99), (19 + (100 - AlbumReleaseDate)),
+                                         (19 - AlbumReleaseDate)))
+                                         
+
+#album weeks number 1, this is fine as we are going > 0 and =< 1
+for(i in 8:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumWeeksNumberOne[j] > as.numeric(awn1_normy[i]) &&
+         training_data$AlbumWeeksNumberOne[j] <= as.numeric(awn1_normy[i + 1])){
+    training_data$album_weeks_number_1n[j] = i
+  }
+  }
+}
+
+for(i in 2:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumWeeksOnChart[j] > as.numeric(awoc_normy[i]) &&
+         training_data$AlbumWeeksOnChart[j] <= as.numeric(awoc_normy[i + 1])){
+    training_data$album_weeks_on_chart_n[j] = i
+  }
+  }
+}
+
+#album weeks on chart
+
+#albumchartposition
+for(i in 6:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumBestChartPosition[j] > as.numeric(abcp_normy[i]) &&
+         training_data$AlbumBestChartPosition[j] <= as.numeric(abcp_normy[i + 1])){
+    training_data$album_bcp[j] = (12-i)
+  }
+  }
+}
+
+#Mutate at end to sort out end case
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$ArtistNumFollowers[j] >= as.numeric(anf_normy[i]) &&
+         training_data$ArtistNumFollowers[j] < as.numeric(anf_normy[i + 1])){
+    training_data$artist_follow_n[j] = i
+  }
+  }
+}
+#Create and update artist_popularity
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$ArtistPopularity[j] >= as.numeric(artp_normy[i]) &&
+         training_data$ArtistPopularity[j] < as.numeric(artp_normy[i + 1])){
+    training_data$artist_pop_n[j] = i
+  }
+  }
+}
+#Create and update album popularity
+for(i in 1:10){
+  for(j in 1:nrow(training_data)){
+      if(training_data$AlbumPopularity[j] >= as.numeric(ap_normy[i]) &&
+         training_data$AlbumPopularity[j] < as.numeric(ap_normy[i + 1])){
+    training_data$album_pop_n[j] = i
+  }
+  }
+}
+```
+Defining a function to summarise the data input and define the y variable 
+```{r, message=F, warning=F}
+spotify_summarise <- function(x){
+  x %>%
+     group_by(Artist, AlbumName, AlbumReleaseDate) %>%
+  summarise(track_duration_mean = mean(TrackDuration),
+            track_duration_IQR = IQR(TrackDuration),
+            track_danceability_mean = mean(TrackDanceability),
+            track_danceability_IQR = IQR(TrackDanceability),
+            track_energy_mean = mean(TrackEnergy),
+            track_energy_IQR = IQR(TrackEnergy),
+            track_loudness_mean = mean(TrackLoudness),
+            track_loudness_IQR = IQR(TrackLoudness),
+            track_speechiness_mean = mean(TrackSpeechiness),
+            track_speechiness_IQR = IQR(TrackSpeechiness),
+            track_acousticness_mean = mean(TrackAcousticness),
+            track_acousticness_IQR = IQR(TrackAcousticness),
+            track_instrumentalness_mean = mean(TrackInstrumentalness),
+            track_instrumentalness_IQR = IQR(TrackInstrumentalness),
+            track_valence_mean = mean(TrackValence),
+            track_valence_IQR = IQR(TrackValence),
+            track_tempo_mean = mean(TrackTempo),
+            track_tempo_IQR = IQR(TrackTempo),
+            popularity = mean(popularity)
+            
+  )
+}
+
+spotify_summarise_test <- function(x){
+  x %>%
+     group_by(Artist, AlbumName, AlbumReleaseDate) %>%
+  summarise(track_duration_mean = mean(TrackDuration),
+            track_duration_IQR = IQR(TrackDuration),
+            track_danceability_mean = mean(TrackDanceability),
+            track_danceability_IQR = IQR(TrackDanceability),
+            track_energy_mean = mean(TrackEnergy),
+            track_energy_IQR = IQR(TrackEnergy),
+            track_loudness_mean = mean(TrackLoudness),
+            track_loudness_IQR = IQR(TrackLoudness),
+            track_speechiness_mean = mean(TrackSpeechiness),
+            track_speechiness_IQR = IQR(TrackSpeechiness),
+            track_acousticness_mean = mean(TrackAcousticness),
+            track_acousticness_IQR = IQR(TrackAcousticness),
+            track_instrumentalness_mean = mean(TrackInstrumentalness),
+            track_instrumentalness_IQR = IQR(TrackInstrumentalness),
+            track_valence_mean = mean(TrackValence),
+            track_valence_IQR = IQR(TrackValence),
+            track_tempo_mean = mean(TrackTempo),
+            track_tempo_IQR = IQR(TrackTempo)
+  )
+}
+
+define_y <- function(y){
+y %>%
+  select(popularity) %>%
+  unlist() %>%
+  as.numeric() %>%
+  na.omit()
+}
+```
+First Popularity Combination
+```{r, message=F, warning=F}
+#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
+#Should probably add some sort of verification to the numbers for now they are arbitrary?
+#Tried 2 and 5 for the multiplcation parameter in the years since release scaling 
+#But these both resulted in higher MSE
+training_data_pop_1 <- training_data %>%
+  mutate(popularity = ((25 * training_data$album_pop_n + 25 * training_data$artist_pop_n +
+                         25 * training_data$artist_follow_n + 10 * training_data$album_bcp +
+                         10 * training_data$album_weeks_on_chart_n +
+                         5 * training_data$album_weeks_number_1n)/(
+                         10 * ((100 + 3 * training_data$years_since_release)/
+                         (100 + training_data$years_since_release))))) %>%
+  #Correcting for the max term which is not included in the if statement
+  mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
+  mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
+  mutate(album_pop_n = if_else(album_pop_n == 0, 10, album_pop_n))
+
+
+data_1 <- training_data_pop_1 %>%
+  spotify_summarise %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate)
+```
+
+Second Popularity Combination
+```{r, message=F, warning=F}
+#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
+#Should probably add some sort of verification to the numbers for now they are arbitrary?
+value <- 100/3
+training_data_pop_2 <- training_data %>%
+  mutate(popularity = ((value * training_data$album_pop_n + value * training_data$artist_pop_n +
+                         value * training_data$artist_follow_n)/(
+                         10 * ((100 + 3 * training_data$years_since_release)/
+                         (100 + training_data$years_since_release))))) %>%
+  #Correcting for the max term which is not included in the if statement
+  mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
+  mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
+  mutate(album_pop_n = if_else(album_pop_n == 0, 10, album_pop_n))
+
+
+data_2 <- training_data_pop_2 %>%
+  spotify_summarise %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate)
+```
+Third Popularity Combination
+```{r, message=F, warning=F}
+#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
+#Should probably add some sort of verification to the numbers for now they are arbitrary?
+value <- 100/6
+training_data_pop_3 <- training_data %>%
+  mutate(popularity = ((value * training_data$album_pop_n + value * training_data$artist_pop_n +
+                         value * training_data$artist_follow_n + value * training_data$album_bcp +
+                         value * training_data$album_weeks_on_chart_n +
+                         value * training_data$album_weeks_number_1n)/(
+                         10 * ((100 + 3 * training_data$years_since_release)/
+                         (100 + training_data$years_since_release))))) %>%
+  #Correcting for the max term which is not included in the if statement
+  mutate(artist_follow_n = if_else(artist_follow_n == 0, 10, artist_follow_n)) %>%
+  mutate(artist_pop_n = if_else(artist_pop_n == 0, 10, artist_pop_n)) %>%
+  mutate(album_pop_n = if_else(album_pop_n == 0, 10, album_pop_n))
+
+
+data_3 <- training_data_pop_3 %>%
+  spotify_summarise %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate)
+```
+
+###Best Subset Regression
+Dataset 1:
+```{r, message=F, warning=F}
+#all subsets regression
+
+
+m <- regsubsets(popularity ~ ., data = data_1)
+
+summary(m)
+
+#measures
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#check Adjusted R2
+rsq <- as.data.frame(summary(m)$adjr2)
+names(rsq) <- "Adjusted-R2"
+rsq %>% 
+        ggvis(x=~ c(1:nrow(rsq)), y=~`Adjusted-R2` ) %>%
+        layer_points(fill = ~`Adjusted-R2`) %>%
+        add_axis("y", title = "Adjusted-R2`") %>% 
+        add_axis("x", title = "Number of variables")
+
+#the final Adjusted R2 is very high
+
+reg.summary <- summary(m)
+
+
+#compare RSS, Cp, bic, adjr2
+par(mfrow=c(2,2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",type="l")
+plot(reg.summary$adjr2 ,xlab="Number of Variables ", ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(which.max(reg.summary$adjr2),reg.summary$adjr2[which.max(reg.summary$adjr2)], col="red",cex=2,pch=20)
+plot(reg.summary$cp ,xlab="Number of Variables ",ylab="Cp", type='l')
+which.min(reg.summary$cp )
+points(which.min(reg.summary$cp ),reg.summary$cp [which.min(reg.summary$cp )],col="red",cex=2,pch=20)
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type='l')
+which.min(reg.summary$bic )
+points(which.min(reg.summary$bic ),reg.summary$bic [which.min(reg.summary$bic )],col="red",cex=2,pch=20)
+par(mfrow=c(1,1))
+
+
+coef(m, 8)
+
+
+#a selected best model by adjr2
+m1 <- lm( popularity ~  track_loudness_mean  + track_speechiness_mean+ track_speechiness_IQR+ track_acousticness_mean + track_acousticness_IQR + track_valence_mean +      track_valence_IQR  + track_tempo_mean  ,data= data_1)
+summary(m1)
+
+#predictions on testing data
+preds <- predict(m1, newdata = data_1 )
+mse_bs1 <- mean((preds - data_1$popularity)^2)
+absolute_bs1 <- sqrt( mean((preds - data_1$popularity)^2) )
+```
+Dataset 2:
+```{r, message=F, warning=F}
+#all subsets regression
+
+m <- regsubsets(popularity ~ ., data = data_2)
+
+summary(m)
+
+#measures
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#check Adjusted R2
+rsq <- as.data.frame(summary(m)$adjr2)
+names(rsq) <- "Adjusted-R2"
+rsq %>% 
+        ggvis(x=~ c(1:nrow(rsq)), y=~`Adjusted-R2` ) %>%
+        layer_points(fill = ~`Adjusted-R2`) %>%
+        add_axis("y", title = "Adjusted-R2`") %>% 
+        add_axis("x", title = "Number of variables")
+
+#the final Adjusted R2 is very high
+
+reg.summary <- summary(m)
+
+
+#compare RSS, Cp, bic, adjr2
+par(mfrow=c(2,2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",type="l")
+plot(reg.summary$adjr2 ,xlab="Number of Variables ", ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(which.max(reg.summary$adjr2),reg.summary$adjr2[which.max(reg.summary$adjr2)], col="red",cex=2,pch=20)
+plot(reg.summary$cp ,xlab="Number of Variables ",ylab="Cp", type='l')
+which.min(reg.summary$cp )
+points(which.min(reg.summary$cp ),reg.summary$cp [which.min(reg.summary$cp )],col="red",cex=2,pch=20)
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type='l')
+which.min(reg.summary$bic )
+points(which.min(reg.summary$bic ),reg.summary$bic [which.min(reg.summary$bic )],col="red",cex=2,pch=20)
+par(mfrow=c(1,1))
+
+
+coef(m, 8)
+
+
+#a selected best model by adjr2
+m1 <- lm( popularity ~  track_duration_IQR + track_danceability_mean + track_loudness_mean + track_speechiness_mean +  track_speechiness_IQR+ track_acousticness_IQR  +    track_valence_mean  +      track_tempo_mean ,data= data_2)
+summary(m1)
+
+#predictions on testing data
+preds <- predict(m1, newdata = data_2)
+
+absolute_bs2 <- sqrt( mean((preds - data_2$popularity)^2) )
+mse_bs2 <- mean((preds - data_2$popularity)^2) 
+```
+Third Dataset:
+```{r, message=F, warning=F}
+m <- regsubsets(popularity ~ ., data = data_3)
+
+summary(m)
+
+#measures
+par(mfrow = c(1,1))
+
+plot(m, scale = "Cp")
+
+plot(m, scale = "bic")
+
+plot(m, scale = "adjr2")
+
+
+#check Adjusted R2
+rsq <- as.data.frame(summary(m)$adjr2)
+names(rsq) <- "Adjusted-R2"
+rsq %>% 
+        ggvis(x=~ c(1:nrow(rsq)), y=~`Adjusted-R2` ) %>%
+        layer_points(fill = ~`Adjusted-R2`) %>%
+        add_axis("y", title = "Adjusted-R2`") %>% 
+        add_axis("x", title = "Number of variables")
+
+#the final Adjusted R2 is very high
+
+reg.summary <- summary(m)
+
+
+#compare RSS, Cp, bic, adjr2
+par(mfrow=c(2,2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",type="l")
+plot(reg.summary$adjr2 ,xlab="Number of Variables ", ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(which.max(reg.summary$adjr2),reg.summary$adjr2[which.max(reg.summary$adjr2)], col="red",cex=2,pch=20)
+plot(reg.summary$cp ,xlab="Number of Variables ",ylab="Cp", type='l')
+which.min(reg.summary$cp )
+points(which.min(reg.summary$cp ),reg.summary$cp [which.min(reg.summary$cp )],col="red",cex=2,pch=20)
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type='l')
+which.min(reg.summary$bic )
+points(which.min(reg.summary$bic ),reg.summary$bic [which.min(reg.summary$bic )],col="red",cex=2,pch=20)
+par(mfrow=c(1,1))
+
+
+coef(m, 8)
+
+
+#a selected best model by adjr2
+m3 <- lm( popularity ~ track_duration_mean +   track_loudness_mean + track_speechiness_mean + track_speechiness_IQR + track_acousticness_IQR    +   track_valence_IQR  +      track_tempo_mean   +track_tempo_IQR,data= data_2)
+summary(m3)
+
+#predictions on testing data
+preds <- predict(m3, newdata = data_3 )
+
+absolute_bs3 <- sqrt(mean((preds - data_3$popularity)^2))
+mse_bs3 <- mean((preds - data_3$popularity)^2)
+```
+
+Looking at ridge regression... The commented lines were used to visualise the datasets in our dummy runs but were not rerun as part of the actual methods
+```{r ridgeregression, message=F, warning=F}
+
+#Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
+ridge_reg <- function(data){
+model_data <- data
+output <- data.frame(matrix(0, nrow = 0, ncol = 2))
+#Looking at the models with the whole dataset
+x <- model.matrix(popularity ~ ., model_data )
+y <- define_y(model_data)
+
+grid <- 10^seq(10, -2, length = 100)
+ridge_mod <- glmnet(x, y, alpha = 0)
+
+#Looking at the model
+#dim(coef(ridge_mod))
+#plot(ridge_mod)    # Draw plot of coefficients
+
+output <- data.frame(matrix(0, nrow = 0, ncol = 2))
+for(i in 1:nrow(model_data)){
+  train = model_data[-i,]
+
+test <- model_data %>%
+  setdiff(train)
+
+x_train <- model.matrix(popularity ~ ., train)
+x_test <- model.matrix(popularity ~ ., test)
+
+y_train <- define_y(train)
+
+
+y_test <- define_y(test)
+
+cv.out <- cv.glmnet(x_train, y_train, alpha = 0) # Fit ridge regression model on training data
+bestlam <- cv.out$lambda.min  # Select lamda that minimizes training MSE
+ridge_mod <- glmnet(x_train, y_train, alpha= 0, lambda = bestlam, thresh = 1e-12)
+ridge_pred <- predict(ridge_mod, s = bestlam, newx = x_test) # Use best lambda to predict test data
+m <- mean((ridge_pred - y_test)^2) # Calculate test MSE
+output[i,1] <- bestlam
+output[i,2] <- m
+}
+output <- output %>%
+  rename(best_lambda = X1, MSE = X2)
+#plot(cv.out)
+mean_lambda <- output %>%
+  #Using median rather than mean as since we are only using 1 datapoint
+  #for our test dataset, if it is anonamous it could lead to a slight bias
+  summarise(lambda = median(output$best_lambda)) %>%
+  as_vector()
+#Fitting the model on the whole dataset as defined by the average 
+#best lamda as calculated above using k-1 validation
+#This is then returned as the output of the function
+glmnet(x, y, alpha = 0, lambda = mean_lambda) 
+}
+```
+Running Ridge Regression on our three datasets and looking at MSE.
+```{r, message=F, warning=F}
+#Dataset 1
+ridge_data1 <- ridge_reg(data_1)
+#MSE of entire training dataset
+x_data1 <- model.matrix(popularity ~ ., data_1)
+y_data1 <- define_y(data_1)
+ridge_pred_1 <- predict(ridge_data1, newx = x_data1)
+mse_model1 <- mean((ridge_pred_1 - y_data1)^2)
+absolute_ridge1 <- median(sqrt((ridge_pred_1 - y_data1)^2))
+#Extract the coefficients of each variable in the model
+
+#Dataset2
+ridge_data2 <- ridge_reg(data_2)
+#MSE of entire training dataset
+x_data2 <- model.matrix(popularity ~ ., data_2)
+y_data2 <- define_y(data_2)
+ridge_pred_2 <- predict(ridge_data2, newx = x_data2)
+mse_model2 <- mean((ridge_pred_2 - y_data2)^2)
+absolute_ridge2 <- median(sqrt((ridge_pred_2 - y_data2)^2))
+#Extract the coefficients of each variable in the model
+
+#Dataset 3
+ridge_data3 <- ridge_reg(data_3)
+#MSE of entire training dataset
+x_data3 <- model.matrix(popularity ~ ., data_3)
+y_data3 <- define_y(data_3)
+ridge_pred_3 <- predict(ridge_data3, newx = x_data3)
+mse_model_3 <- mean((ridge_pred_3 - y_data3)^2)
+absolute_ridge3 <- median(sqrt((ridge_pred_3 - y_data3)^2))
+#Extract the coefficients of each variable in the model
+```
+Looking at the Lasso linear modelling method to see if we can improve on ridge regression
+```{r lassoregression, message=F, warning=F}
+set.seed(666)
+#Get training_data_pop from EDA file
+#Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
+lasso_reg <- function(data){
+model_data <- data
+output <- data.frame(matrix(0, nrow = 0, ncol = 2))
+#Looking at the models with the whole dataset
+x <- model.matrix(popularity ~ ., model_data )
+y <- define_y(model_data)
+
+grid <- 10^seq(10, -2, length = 100)
+ridge_mod <- glmnet(x, y, alpha = 1)
+
+output <- data.frame(matrix(0, nrow = 0, ncol = 2))
+for(i in 1:nrow(model_data)){
+  train = model_data[-i,]
+
+test <- model_data %>%
+  setdiff(train)
+
+x_train <- model.matrix(popularity ~ ., train)
+x_test <- model.matrix(popularity ~ ., test)
+
+y_train <- define_y(train)
+
+
+y_test <- define_y(test)
+
+cv.out <- cv.glmnet(x_train, y_train, alpha = 1) # Fit lasso regression model on training data
+bestlam <- cv.out$lambda.min  # Select lamda that minimizes training MSE
+ridge_mod <- glmnet(x_train, y_train, alpha= 1, lambda = bestlam, thresh = 1e-12)
+ridge_pred <- predict(ridge_mod, s = bestlam, newx = x_test) # Use best lambda to predict test data
+m <- mean((ridge_pred - y_test)^2) # Calculate test MSE
+output[i,1] <- bestlam
+output[i,2] <- m
+}
+output <- output %>%
+  rename(best_lambda = X1, MSE = X2)
+#plot(cv.out)
+mean_lambda <- output %>%
+  #Using median rather than mean as since we are only using 1 datapoint
+  #for our test dataset, if it is anonamous it could lead to a slight bias
+  summarise(lambda = median(output$best_lambda)) %>%
+  as_vector()
+#Fitting the model on the whole dataset as defined by the average 
+#best lamda as calculated above using k-1 validation
+#This is then returned as the output of the function
+glmnet(x, y, alpha = 1, lambda = mean_lambda) 
+}
+```
+Lasso outputs
+```{r, message=F, warning=F}
+lasso_data1 <- lasso_reg(data_1)
+lx_data1 <- model.matrix(popularity ~ ., data_1)
+ly_data1 <- define_y(data_1)
+lasso_pred_1 <- predict(lasso_data1, newx = lx_data1)
+lmse_model1 <- mean((lasso_pred_1 - ly_data1)^2)
+absolute_lasso1 <- median(sqrt((lasso_pred_1 - ly_data1)^2))
+#Extract the coefficients of each variable in the model
+
+lasso_data2 <- lasso_reg(data_2)
+lx_data2 <- model.matrix(popularity ~ ., data_2)
+ly_data2 <- define_y(data_2)
+lasso_pred_2 <- predict(lasso_data1, newx = lx_data2)
+lmse_model2 <- mean((lasso_pred_2 - ly_data2)^2)
+absolute_lasso2 <- median(sqrt((lasso_pred_2 - ly_data2)^2))
+#Extract the coefficients of each variable in the model
+
+lasso_data3 <- lasso_reg(data_3)
+lx_data3 <- model.matrix(popularity ~ ., data_3)
+ly_data3 <- define_y(data_3)
+lasso_pred_3 <- predict(lasso_data3, newx = lx_data3)
+lmse_model3 <- mean((lasso_pred_3 - ly_data3)^2)
+absolute_lasso3 <- median(sqrt((lasso_pred_3 - ly_data3)^2))
+#Extract the coefficients of each variable in the model
+```
+From this it seems the ridge regression model performs better in terms of MSE although the Lasso Model has the benefit of discarding some paremeters as the values associated with them are zero, whereas ridge gives a value to every input (no subset selection).
+Summary of all the models:
+```{r, message=F, warning=F}
+model_summary <- tibble(method = c("Best Subset Selection 1", "Best Subset Selection 2", "Best Subset Selection 3",
+                  "Ridge 1","Ridge 2","Ridge 3", "Lasso 1", "Lasso 2", "Lasso 3"),
+  MSE = c(mse_bs1, mse_bs2, mse_bs3, mse_model1, mse_model2, mse_model_3, lmse_model1, lmse_model2, lmse_model3), 
+       AE = c(absolute_bs1, absolute_bs2, absolute_bs3, absolute_ridge1, absolute_ridge2, 
+              absolute_ridge3, absolute_lasso1, absolute_lasso2, absolute_lasso3))
+model_summary
+
+#Returning the parameter estimates of all the models:
+ridge_best <- ridge_data3$beta
+ridge_best
+lasso_best <- lasso_data3$beta
+lasso_best
+```
+To save time, if the output needs to be seen quickly then the following rcode loads a previously saved image of the R environment so all the variables can be referenced. Commented out as only needs to be run if not knitting and want to see the variables quickly.
+```{r}
+#saving the rdata
+#save.image(file = "models.Rdata")
+#Can be loaded with:
+#load("models.Rdata)
+```
+Since it is best to be as parsimonious as possible, the Lasso model is better than the Ridge Regression model. Now our *best* model has been decided upon, the following code will run it on our *Test* data. In other words, we are using this test data to mimic being potential investments and the aim is to return which models are artists and albums are good (or not!). In this case it is the Lasso3 model which shall be used.
+```{r, message=F, warning=F}
+#The first step is to load the data in an group as required:
+investments <- test_data %>%
+  spotify_summarise_test %>% 
+  ungroup() %>%
+  select(-AlbumName, -Artist, -AlbumReleaseDate) %>%
+  #The line below is added as we need this variable to create the test matrix
+  #The value assigned to it is arbitrary as under our model assumptions
+  #It is unknown and so doesn't matter and it is not used in any part of the
+  #Calculations as follows ~ alternative would be to use a test matrix
+  #Created previously
+  mutate(popularity = 666)
+#Keeping the Artist and Album name
+art_alb <- test_data %>% select(Artist, AlbumName) %>% unique()
+#Creating the test matrix
+test_matrix <- model.matrix(popularity ~ ., investments)
+#Predicting popularities of Test data
+test_predict <- predict(lasso_data3, newx = test_matrix)
+test_predict <- test_predict %>%
+  as_tibble()
+#Binding Rows for interest
+test_predict <- bind_cols(art_alb, test_predict) %>%
+  rename(Popularity = s0)
+#Ouputting the data
+print(test_predict)
+#From our predictions if we had to invest in one artist we would choose Genesis
+#Which was a very popular band
+```
+
+## Section 3: Implementation of Task 2
+
+The next code chunk finds the tags that appear more than a given number of times in the training data (under the variable ArtistGenres), produces a table of these words and then prints a bar plot showing their respective frequencies.
+
+```{r find the most common genres, message=F, warning=F}
+
+genres <- mutate(training_data, 
+                 ArtistGenres = strsplit(ArtistGenres, ","))$ArtistGenres %>% 
+  unlist() %>% 
+  unique() %>% 
+  na.omit()
+
+split_genres <- NULL
+
+for(i in 1:length(genres)) {
+  split_genres[i] <- strsplit(genres[i], " ")
+}
+
+genre_words <- unlist(split_genres)
+
+cutoff_freq <- 5
+
+most_frequent_words <- subset(as.data.frame(table(genre_words)), (Freq > cutoff_freq))
+
+genre_freq_plot <- most_frequent_words %>% 
+  ggplot(aes(x=genre_words, y=Freq)) + geom_col()
+
+print(genre_freq_plot)
+
+```
+
+### Clustering
+
+The following code creates a short function defined as follows: $f: A\subset\mathbb{R} \to [0,1],$ $f(x) = \frac{x-\min(A)}{\max(A) - \min(A)}$. This will be used later in the code.
+
+```{r nomalise function, message=F, warning=F}
+
+standardise <- function(x){(x-min(x))/(max(x)-min(x))}
+
+```
+
+This code chunk keeps only the relevant variables for clustering and normalises the values of each variable.
+
+```{r prep data for clustering, message=F, warning=F}
+
+clustering_training_data <- training_data[c("TrackDuration", "TrackDanceability",
+                                            "TrackEnergy", "TrackKey", "TrackLoudness",
+                                            "TrackSpeechiness", "TrackAcousticness",
+                                            "TrackInstrumentalness", "TrackLiveness", 
+                                            "TrackValence", "TrackTempo")] %>%
+  mutate(TrackDuration = standardise(TrackDuration)) %>% 
+  mutate(TrackKey = standardise(TrackKey)) %>% 
+  mutate(TrackLoudness = standardise(TrackLoudness)) %>%
+  mutate(TrackTempo = standardise(TrackTempo))
+
+```
+
+This code produces a matrix of agglomerative coeffiecients for 4 different linkage methods and 6 different distance metrics to use with the hierarchical agglomerative clustering method. It takes ages to run so this chunk has been included but does not evaluate; the evaluated table is included in the technical appendix .zip file.
+
+```{r compare cluster methods, eval=FALSE}
+
+# matrix of methods to compare
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+
+distances <- c("euclidean", "maximum", "manhattan", "canberra", 
+               "binary", "minkowski")
+names(distances) <- c("euclidean", "maximum", "manhattan", 
+                      "canberra", "binary", "minkowski")
+
+clust_comps <- matrix(nrow = length(distances), ncol = length(m), 
+                      dimnames = list(distances,m))
+
+# function to compute coefficient
+ac <- function(distance, linkage) {
+  dista <- dist(clustering_training_data, method = distance)
+  agnes(dista, method = linkage)$ac
+}
+
+for(i in 1:length(distances)) {
+  for(j in 1:length(m)) {
+    clust_comps[i,j] <- ac(distances[i], m[j])
+  }
+}
+
+```
+
+The training data is then clustered using the following line of code.
+
+```{r clustering, message=F, warning=F}
+
+clustered <- agnes(dist(clustering_training_data, method = "euclidian"), 
+                   diss=TRUE, method = "ward")
+
+# add cluster labels to the training data
+
+training_data$cluster <- cutree(clustered, k=5)
+
+```
+
+Then the NbClust() function is used to find the best number of clusters for the clustered data.
+
+```{r find the right number of clusters, message=F, warning=F}
+
+fviz_nbclust(NbClust(clustering_training_data, distance="euclidean", 
+                                min.nc=4, max.nc=9, method="ward.D2", index="all"))
+
+```
+
+The code below produces the dendrogram found in the technical appendix .zip file but is not evaluated in this markdown file for time reasons.
+
+```{r produce dendrogram, eval=FALSE}
+
+fviz_dend(clustered, k=5, show_labels = FALSE)
+
+```
+
+## Classification
+
+The code below filters the useful information for the test and training data sets and separates the training data's true labels into another variable.
+
+```{r prep data for classification, message=F, warning=F}
+
+classification_training_data <- training_data[c("TrackName", "TrackDuration", "TrackDanceability",
+                                            "TrackEnergy", "TrackKey", "TrackLoudness",
+                                            "TrackSpeechiness", "TrackAcousticness",
+                                            "TrackInstrumentalness", "TrackLiveness", 
+                                            "TrackValence", "TrackTempo")] %>%
+  mutate(TrackDuration = standardise(TrackDuration)) %>% 
+  mutate(TrackKey = standardise(TrackKey)) %>% 
+  mutate(TrackLoudness = standardise(TrackLoudness)) %>%
+  mutate(TrackTempo = standardise(TrackTempo))
+
+classification_test_data <- test_data[c("TrackName", "TrackDuration", "TrackDanceability",
+                                            "TrackEnergy", "TrackKey", "TrackLoudness",
+                                            "TrackSpeechiness", "TrackAcousticness",
+                                            "TrackInstrumentalness", "TrackLiveness", 
+                                            "TrackValence", "TrackTempo")] %>%
+  mutate(TrackDuration = standardise(TrackDuration)) %>% 
+  mutate(TrackKey = standardise(TrackKey)) %>% 
+  mutate(TrackLoudness = standardise(TrackLoudness)) %>%
+  mutate(TrackTempo = standardise(TrackTempo))
+
+true_classifications <- training_data$cluster
+
+```
+
+The following function simply classifies a song using the k-Nearest Neighbours algorithm and returns the number cluster it should be in.
+
+```{r kNN function, message=F, warning=F}
+
+# use k value of sqrt(2375) = ~49 by professional convention
+
+# assume song is a name of a track from the classification test data
+
+classify_song <- function(song_name, train_data, labels, K) {
+  
+  song <- subset(classification_test_data, TrackName==song_name)
+  song <- song[,-1]
+  
+  return(knn(train_data, song, labels, K))
+
+}
+
+```
+
+Finally, the completed function takes a song from the test data set, finds the distances to all the other songs in the same cluster, replaces each distance with a sample from the normal distribution (where the mean is the distance and the variance is given) and then returns the song with the smalled so-called "randomised distance" from the input song.
+
+```{r weighting method, message=F, warning=F}
+
+# let exploration be the variance of the sampling distribution
+
+recommend_new_song <- function(song_name, exploration=0.5) {
+  
+  # find the cluster that the new track is in
+  
+  clusternumber <- classify_song(song_name, classification_training_data[,-1],
+                                 true_classifications, 49)
+  
+  song <- (subset(classification_test_data, TrackName==song_name))[,-1]
+  
+  tracks_in_cluster <- subset(data.frame(classification_training_data, 
+                                         true_classifications), 
+                              true_classifications==clusternumber)
+
+  # calculate the euclidean distance between the new song and every other song in the cluster
+  
+  distances <- data.frame((1:dim(tracks_in_cluster[,-1])[1]), 
+                          rep(0, dim(tracks_in_cluster[,-1])[1]))
+  
+  for(i in 1:(dim(tracks_in_cluster[,-1])[1])) {
+    
+    distances[i,2] <- dist(rbind(song, tracks_in_cluster[i,c(-1,-13)]), method = "euclidean")
+  
+  }
+  
+  colnames(distances) <- c("TrackID", "RandomisedDist")
+  
+  # replace distance value with a normally sampled random number based on distance
+  
+  for(i in 1:(dim(tracks_in_cluster[,-1])[1])) {
+    
+    distances[i,2] <- distances[i,2]*abs(rnorm(1, 1, exploration))
+  
+  }
+  
+  # sort the randomised distances
+  
+  distances <- distances[order(distances$RandomisedDist),]
+  
+  # return the name of the song with the smallest randomised distance
+  
+  nearest_song <- tracks_in_cluster[distances[1,1],]
+  
+  return(nearest_song$TrackName)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
