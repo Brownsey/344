@@ -107,7 +107,7 @@ The ggpairs function is really useful to summarise all the variables in a neat r
 #Takes a few minutes to run
 #Though there a few too many variables here to see clearly in the knitted pdf,
 #however within the Rstudio Session you can zoom on the plot and then
-#All the values can be seen
+#All the values can be clearly seen
 ggpairs_1 <- ggpairs(data = training_data_subsetted, title = "Predictor Variables")
 ggpairs_1
 ggpairs_2 <- ggpairs(data = training_data %>%
@@ -254,6 +254,7 @@ A new popularity variable needs to be defined to take into account all the other
 set.seed(666)
 #Looking at implementing new variables for each popularity variable
 #Can then take this and normalise to give a score out of 100.
+#This cost will then have the age factor applied to it.
 #To start with the whole training dataset will be used
 normy <- function(x){
   as.numeric(x)
@@ -408,8 +409,6 @@ y %>%
 ```
 First Popularity Combination
 ```{r, message=F, warning=F}
-#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
-#Should probably add some sort of verification to the numbers for now they are arbitrary?
 #Tried 2 and 5 for the multiplcation parameter in the years since release scaling 
 #But these both resulted in higher MSE
 training_data_pop_1 <- training_data %>%
@@ -433,8 +432,6 @@ data_1 <- training_data_pop_1 %>%
 
 Second Popularity Combination
 ```{r, message=F, warning=F}
-#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
-#Should probably add some sort of verification to the numbers for now they are arbitrary?
 value <- 100/3
 training_data_pop_2 <- training_data %>%
   mutate(popularity = ((value * training_data$album_pop_n + value * training_data$artist_pop_n +
@@ -454,8 +451,6 @@ data_2 <- training_data_pop_2 %>%
 ```
 Third Popularity Combination
 ```{r, message=F, warning=F}
-#Could maybe add a years from release as a penalty to make newer songs higher rated or subset the data?
-#Should probably add some sort of verification to the numbers for now they are arbitrary?
 value <- 100/6
 training_data_pop_3 <- training_data %>%
   mutate(popularity = ((value * training_data$album_pop_n + value * training_data$artist_pop_n +
@@ -476,12 +471,11 @@ data_3 <- training_data_pop_3 %>%
   select(-AlbumName, -Artist, -AlbumReleaseDate)
 ```
 
+
 ###Best Subset Regression
 Dataset 1:
 ```{r, message=F, warning=F}
 #all subsets regression
-
-
 m <- regsubsets(popularity ~ ., data = data_1)
 
 summary(m)
@@ -656,10 +650,9 @@ absolute_bs3 <- sqrt(mean((preds - data_3$popularity)^2))
 mse_bs3 <- mean((preds - data_3$popularity)^2)
 ```
 
+### Ridge Regression
 Looking at ridge regression... The commented lines were used to visualise the datasets in our dummy runs but were not rerun as part of the actual methods
 ```{r ridgeregression, message=F, warning=F}
-
-#Code based from http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
 ridge_reg <- function(data){
 model_data <- data
 output <- data.frame(matrix(0, nrow = 0, ncol = 2))
@@ -670,7 +663,8 @@ y <- define_y(model_data)
 grid <- 10^seq(10, -2, length = 100)
 ridge_mod <- glmnet(x, y, alpha = 0)
 
-#Looking at the model
+#Looking at the model coefficients,
+#saved image once for use in presentation
 #dim(coef(ridge_mod))
 #plot(ridge_mod)    # Draw plot of coefficients
 
@@ -681,12 +675,12 @@ for(i in 1:nrow(model_data)){
 test <- model_data %>%
   setdiff(train)
 
+#Creating popularity matrices
 x_train <- model.matrix(popularity ~ ., train)
 x_test <- model.matrix(popularity ~ ., test)
 
+#Defining y outcomes
 y_train <- define_y(train)
-
-
 y_test <- define_y(test)
 
 cv.out <- cv.glmnet(x_train, y_train, alpha = 0) # Fit ridge regression model on training data
@@ -743,6 +737,8 @@ mse_model_3 <- mean((ridge_pred_3 - y_data3)^2)
 absolute_ridge3 <- median(sqrt((ridge_pred_3 - y_data3)^2))
 #Extract the coefficients of each variable in the model
 ```
+
+###Lasso
 Looking at the Lasso linear modelling method to see if we can improve on ridge regression
 ```{r lassoregression, message=F, warning=F}
 set.seed(666)
@@ -821,7 +817,7 @@ lmse_model3 <- mean((lasso_pred_3 - ly_data3)^2)
 absolute_lasso3 <- median(sqrt((lasso_pred_3 - ly_data3)^2))
 #Extract the coefficients of each variable in the model
 ```
-From this it seems the ridge regression model performs better in terms of MSE although the Lasso Model has the benefit of discarding some paremeters as the values associated with them are zero, whereas ridge gives a value to every input (no subset selection).
+From this it seems the ridge regression model performs better in terms of MSE although the Lasso Model has the benefit of discarding some paremeters as the values associated with them are zero, whereas ridge gives a value to every input (no subset selection). For this reason, as it is desired to be as parsimonious as possible, the Lasso is the better model.
 Summary of all the models:
 ```{r, message=F, warning=F}
 model_summary <- tibble(method = c("Best Subset Selection 1", "Best Subset Selection 2", "Best Subset Selection 3",
