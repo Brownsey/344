@@ -8,8 +8,7 @@ always_allow_html: yes
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## Introduction
-This Appendix will be broken down into three parts. The first will go over some general data analysis which undertaken to get a visual feel of the dataset that was being worked with, this includes loading all the data, cleaning and subsetting as required.
-The second will cover the implementation of Task 1 and finally the third will cover the implementation of Task 2.
+This appendix will be broken down into three parts: the first will go over some general data analysis which undertaken to get a visual feel of the dataset that was being worked with, mainly covering the cleaning and subsetting as required; the second will cover the implementation of Task 1; the third will cover the implementation of Task 2.
 
 ## Section 1: General EDA
 Loading all the required libraries:
@@ -102,7 +101,7 @@ training_data_subsetted <- training_data[c("TrackDuration", "TrackDanceability",
 
 ## General EDA
 
-The ggpairs function is really useful to summarise all the variables in a neat readable way, in the code below only the parameter variables will be taken into consideration in the first ggpairs. In the second one, all the popularity variables will be considered.
+The ggpairs function is really useful to summarise all the variables in a neat readable way. In the first chunk below only the parameter variables will be taken into consideration in the first ggpairs; in the second, all the popularity variables will be considered.
 ```{r ggpairs, message=F, warning=F}
 #Takes a few minutes to run
 #Though there a few too many variables here to see clearly in the knitted pdf,
@@ -240,14 +239,16 @@ colnames(means21) <- c("year","popularity","type")
 means21$year <- as.integer(as.character(means21$year))
 means21$popularity <- as.numeric(as.character(means21$popularity))
 
-ggplot(means21, aes(year, popularity)) + geom_line(color = "indianred") + geom_point(color = "blue") + 
-  theme_classic() + geom_text(aes(label = type) ,check_overlap = TRUE, size = 4, nudge_y = 0.1) + ggtitle("all time most popularity music type")
+ggplot(means21, aes(year, popularity)) + geom_line(color = "indianred") + 
+  geom_point(color = "blue") + theme_classic() + 
+  geom_text(aes(label = type) ,check_overlap = TRUE, size = 4, nudge_y = 0.1) + 
+  ggtitle("all time most popularity music type")
+
 ```
 
-
 ## Section 2: Implementation of Task 1:
-There was room for interpretation on this question, our interpretation was as follows:
-The training dataset is to be used as our data to create and test the models in the first instance. Then our Test data is mimicking the *new* artists who the recording label could invest in. The reason this was decided upon was the variables currently in our dataset are not as ideal in terms of predicting *song* popularity as we would like, so instead we'll focus on using it as a pilot study with popularity at an album level to test our ideas and theories. With the aim, not necessarily to optimise the function for the variables we currently but to pave a good grounding for the future implementation of the models on a larger, more commericial scale. In this way trying to 
+There was room for interpretation on this question, and our interpretation was as follows:
+The training dataset is to be used as our data to create and test the models in the first instance, and our test data is mimicking the *new* artists who the recording label could invest in. The reason this was decided upon was that the variables currently in our dataset are not as ideal in terms of predicting *song* popularity as we would like, so instead we'll focus on using it as a pilot study with popularity at an album level to test our ideas and theories. The aim was not necessarily to optimise the function for the variables we currently but to pave a good grounding for the future implementation of the models on a larger, more commercial scale.
 
 A new popularity variable needs to be defined to take into account all the other popularity variables
 ```{r newPop, message=F, warning=F}
@@ -407,7 +408,7 @@ y %>%
   na.omit()
 }
 ```
-First Popularity Combination
+First popularity combination
 ```{r, message=F, warning=F}
 #Tried 2 and 5 for the multiplcation parameter in the years since release scaling 
 #But these both resulted in higher MSE
@@ -840,7 +841,7 @@ To save time, if the output needs to be seen quickly then the following rcode lo
 #Can be loaded with:
 #load("models.Rdata)
 ```
-Since it is best to be as parsimonious as possible, the Lasso model is better than the Ridge Regression model. Now our *best* model has been decided upon, the following code will run it on our *Test* data. In other words, we are using this test data to mimic being potential investments and the aim is to return which models are artists and albums are good (or not!). In this case it is the Lasso3 model which shall be used.
+Since parsimony is an important factor to consider when modelling, we decided that the Lasso model is better than the Ridge Regression model. Now our *best* model has been decided upon, the following code will run it on our *test* data. In other words, we are using this test data to mimic being potential investments and the aim is to return which models are artists and albums are good (or not!). In this case it is the Lasso3 model which shall be used.
 ```{r, message=F, warning=F}
 #The first step is to load the data in an group as required:
 investments <- test_data %>%
@@ -903,7 +904,7 @@ print(genre_freq_plot)
 
 ### Clustering
 
-The following code creates a short function defined as follows: $f: A\subset\mathbb{R} \to [0,1],$ $f(x) = \frac{x-\min(A)}{\max(A) - \min(A)}$. This will be used later in the code.
+The following code creates a short normalisation function defined as follows: $f: A\subset\mathbb{R} \to [0,1],$ $f(x) = \frac{x-\min(A)}{\max(A) - \min(A)}$. This will be used later in the code.
 
 ```{r nomalise function, message=F, warning=F}
 
@@ -987,7 +988,7 @@ fviz_dend(clustered, k=5, show_labels = FALSE)
 
 ```
 
-## Classification
+### Classification
 
 The code below filters the useful information for the test and training data sets and separates the training data's true labels into another variable.
 
@@ -1088,7 +1089,38 @@ recommend_new_song <- function(song_name, exploration=0.5) {
 }
 ```
 
+The final chunk here tests the recommendation function on a few examples from the test data.
 
+```{r testing recommendation}
+
+# default exploration value
+
+print(recommend_new_song("R U Mine?"))
+print(recommend_new_song("R U Mine?"))
+print(recommend_new_song("R U Mine?"))
+print(recommend_new_song("R U Mine?"))
+print(recommend_new_song("R U Mine?"))
+print(recommend_new_song("R U Mine?"))
+
+# high exploration value
+
+print(recommend_new_song("R U Mine?", 10))
+print(recommend_new_song("R U Mine?", 10))
+print(recommend_new_song("R U Mine?", 10))
+print(recommend_new_song("R U Mine?", 10))
+print(recommend_new_song("R U Mine?", 10))
+print(recommend_new_song("R U Mine?", 10))
+
+# low exploration value
+
+print(recommend_new_song("R U Mine?", 0.1))
+print(recommend_new_song("R U Mine?", 0.1))
+print(recommend_new_song("R U Mine?", 0.1))
+print(recommend_new_song("R U Mine?", 0.1))
+print(recommend_new_song("R U Mine?", 0.1))
+print(recommend_new_song("R U Mine?", 0.1))
+
+```
 
 
 
